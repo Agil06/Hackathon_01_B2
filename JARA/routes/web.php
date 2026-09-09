@@ -18,4 +18,13 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('invitations/{invitation}', [TeamInvitationController::class, 'decline'])->name('invitations.decline');
 });
 
+use App\Http\Controllers\AdminUserController;
+
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    Route::get('/users/create', [AdminUserController::class, 'create'])->name('users.create');
+    Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
+    Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+});
+
 require __DIR__.'/settings.php';
