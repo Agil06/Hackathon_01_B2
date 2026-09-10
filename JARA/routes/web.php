@@ -22,6 +22,18 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
 });
 
+<<<<<<< HEAD
+use App\Http\Controllers\AdminUserController;
+
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    Route::get('/users/create', [AdminUserController::class, 'create'])->name('users.create');
+    Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
+    Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+});
+
+require __DIR__.'/settings.php';
+=======
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 // ============================================
@@ -66,3 +78,4 @@ Route::get('/', function () {
     }
     return redirect()->route('login');
 })->name('home');
+>>>>>>> 1cf801ca2ad77ee6a28d99aff40ae5881d421592
