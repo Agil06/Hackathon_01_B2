@@ -64,7 +64,7 @@
     </div>
 @else
     <div class="empty-state">
-        <p class="empty-state-text">Belum ada task di project ini.</p>
+        <p class="empty-state-text">Belum ada task di daftar tugas ini.</p>
         <a href="{{ route('tasks.create', $project) }}" class="btn btn-primary btn-sm">
             + Buat Task Pertama
         </a>

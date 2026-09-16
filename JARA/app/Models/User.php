@@ -58,7 +58,12 @@ class User extends Authenticatable
      */
     public function createdProjects(): HasMany
     {
-        return $this->hasMany(Project::class, 'creator_id');
+        return $this->ownedProjects();
+    }
+
+    public function ownedProjects(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Project::class, 'owner_id');
     }
 
     /**

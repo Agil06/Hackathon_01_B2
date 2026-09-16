@@ -53,6 +53,8 @@ Route::middleware('auth')->get('/tasks/mine', [TaskAssignmentController::class, 
 
 Route::middleware('auth')->post('/projects/{project}/collaborators', [CollaboratorController::class, 'store'])
     ->name('collaborators.store');
+Route::middleware('auth')->delete('/projects/{project}/collaborators/{user}', [CollaboratorController::class, 'destroy'])
+    ->name('collaborators.destroy');
 
 // ============================================
 // ADMIN ROUTES - DANIEL

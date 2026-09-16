@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Project — ' . $project->name)
+@section('title', 'Ubah Daftar Tugas — ' . $project->name)
 
 @section('content')
 <div style="max-width: 600px; margin: 0 auto;">
     <div style="margin-bottom: 1.5rem;">
-        <a href="{{ route('projects.show', $project) }}" style="color: var(--text-muted); font-size: 13px;">&larr; Back to Project Details</a>
-        <h1 style="font-size: 1.5rem; margin-top: 0.5rem;">Edit Project</h1>
-        <p style="color: var(--text-muted); font-size: 13px;">Update the name of this project.</p>
+        <a href="{{ route('projects.show', $project) }}" style="color: var(--text-muted); font-size: 13px;">&larr; Kembali ke Detail Daftar Tugas</a>
+        <h1 style="font-size: 1.5rem; margin-top: 0.5rem;">Ubah Daftar Tugas</h1>
+        <p style="color: var(--text-muted); font-size: 13px;">Ubah nama daftar tugas ini.</p>
     </div>
 
     <div class="card">
@@ -16,7 +16,7 @@
             @method('PATCH')
 
             <div class="form-group">
-                <label for="name" class="form-label">Project Name</label>
+                <label for="name" class="form-label">Nama Daftar Tugas</label>
                 <input 
                     type="text" 
                     name="name" 

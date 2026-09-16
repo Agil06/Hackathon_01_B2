@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Projects')
+@section('title', 'Daftar Tugas')
 
 @section('content')
 <div class="projects-hero">
@@ -10,7 +10,7 @@
         <p>Semua pekerjaan tim Anda, tersusun rapi dalam satu tempat.</p>
     </div>
     @can('create', App\Models\Project::class)
-        <a href="{{ route('projects.create') }}" class="btn btn-primary">+ Create Project</a>
+        <a href="{{ route('projects.create') }}" class="btn btn-primary">+ Buat Daftar Tugas</a>
     @endcan
 </div>
 
@@ -19,7 +19,7 @@
         <h3 style="font-size: 1.125rem; margin-bottom: 0.5rem; color: var(--text-main);">No projects yet</h3>
         <p style="color: var(--text-muted); margin-bottom: 1.5rem;">You are not a member of any projects. Create your first project to get started.</p>
         @can('create', App\Models\Project::class)
-            <a href="{{ route('projects.create') }}" class="btn btn-primary">Create Your First Project</a>
+            <a href="{{ route('projects.create') }}" class="btn btn-primary">Buat Daftar Tugas Pertama</a>
         @endcan
     </div>
 @else
@@ -27,7 +27,7 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Project Name</th>
+                    <th>Nama Daftar Tugas</th>
                     <th>Progress</th>
                     <th>Tasks</th>
                     <th>Creator</th>
@@ -56,17 +56,21 @@
                             <span style="color: var(--text-muted); font-size: 13px;">{{ $project->tasks->count() }} tasks</span>
                         </td>
                         <td>
-                            <span style="color: var(--text-muted); font-size: 13px;">{{ $project->creator->name ?? 'Unknown' }}</span>
+                            <span style="color: var(--text-muted); font-size: 13px;">{{ $project->owner->name ?? 'Unknown' }}</span>
                         </td>
                         <td style="text-align: right;">
                             <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
                                 <a href="{{ route('projects.show', $project) }}" class="btn btn-secondary btn-sm">View</a>
-                                <a href="{{ route('projects.edit', $project) }}" class="btn btn-secondary btn-sm">Edit</a>
-                                <form method="POST" action="{{ route('projects.destroy', $project) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this project? All associated tasks will be permanently removed.');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                                </form>
+                                @can('update', $project)
+                                    <a href="{{ route('projects.edit', $project) }}" class="btn btn-secondary btn-sm">Edit</a>
+                                @endcan
+                                @can('delete', $project)
+                                    <form method="POST" action="{{ route('projects.destroy', $project) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this project? All associated tasks will be permanently removed.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                    </form>
+                                @endcan
                             </div>
                         </td>
                     </tr>
