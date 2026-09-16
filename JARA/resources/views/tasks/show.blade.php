@@ -47,9 +47,26 @@
                     </div>
                 </div>
 
+                <div class="task-detail-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Assignee:</span>
+                        <span class="meta-value">
+                            {{ $task->assignees->pluck('name')->join(', ') ?: 'Belum ditugaskan' }}
+                        </span>
+                    </div>
+                </div>
+
                 <div class="task-detail-actions">
                     <a href="{{ route('tasks.edit', [$project, $task]) }}" class="btn btn-primary">
                         Edit Task
+                    </a>
+
+                    <a href="{{ route('tasks.assignees.edit', [$project, $task]) }}" class="btn btn-secondary">
+                        Atur Assignee
+                    </a>
+
+                    <a href="{{ route('tasks.mine') }}" class="btn btn-secondary">
+                        Tugas Saya
                     </a>
                     
                     <form method="POST" action="{{ route('tasks.destroy', [$project, $task]) }}" class="d-inline" 
