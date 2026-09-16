@@ -1,6 +1,8 @@
 {{-- 
-    FR-02: Pengguna terdaftar dapat login
-    FC-02: Field email dan password
+    FR-02: Pengguna terdaftar dapat login menggunakan sesi yang aman
+    BR-01: Autentikasi menggunakan email dan password hash
+    BR-13 & AC-02: Form dilindungi CSRF, login kredensial valid membuat sesi aman
+    UC-01: Formulir login pengguna
 --}}
 @extends('layouts.app')
 

@@ -53,7 +53,8 @@ class AuthController extends Controller
 
     /**
      * Show the login form.
-     * FR-02: Pengguna terdaftar dapat login
+     * FR-02: Pengguna terdaftar dapat login menggunakan sesi yang aman
+     * UC-01: Form login untuk guest
      */
     public function showLoginForm()
     {
@@ -65,8 +66,12 @@ class AuthController extends Controller
 
     /**
      * Handle login submission.
-     * FR-02: Login dengan email dan password yang valid
-     * BR: Session diregenerasi saat login
+     * FR-02: Pengguna terdaftar dapat login dengan email dan password.
+     * BR-01: Autentikasi berbasis email dan password hash.
+     * BR-10: Validasi server untuk format kredensial email & password.
+     * BR-13: Session diregenerasi setelah login berhasil untuk keamanan sesi.
+     * AC-02: Kredensial valid membuat sesi aktif dan menampilkan dashboard; kredensial salah ditolak tanpa membuat sesi.
+     * UC-01: Alur autentikasi dan pembuatan sesi pengguna.
      */
     public function login(Request $request)
     {
@@ -78,12 +83,12 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            // AC-03: User diarahkan ke daftar project
+            // AC-02: Pengguna diarahkan ke dashboard atau intended URL dengan sesi aktif
             return redirect()->intended(route('projects.index'))
                 ->with('success', 'Selamat datang, ' . Auth::user()->name . '!');
         }
 
-        // AC-03: Credential salah tetap di login dengan error
+        // AC-02 & Section 10: Kredensial salah ditolak, tampilkan pesan error dan pertahankan input email
         return back()->withErrors([
             'email' => 'Email atau password yang dimasukkan tidak sesuai.',
         ])->onlyInput('email');
