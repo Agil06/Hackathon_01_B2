@@ -3,6 +3,7 @@
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 
 test('guest cannot access task routes and is redirected to login', function () {
     $owner = User::factory()->create(['role' => 'user']);
@@ -320,4 +321,169 @@ test('accessing task belonging to another project returns 404 (mismatch protecti
         'status' => 'done',
     ])->assertNotFound();
     $this->actingAs($user)->delete(route('tasks.destroy', [$project2, $taskInProject1]))->assertNotFound();
+});
+
+test('member can mark task as done directly via mark-done route (FR-12, AC-11)', function () {
+    $user = User::factory()->create(['role' => 'user']);
+    $project = Project::create(['name' => 'Demo Project', 'creator_id' => $user->id]);
+    $project->members()->attach($user->id);
+
+    $task = Task::create([
+        'project_id' => $project->id,
+        'title' => 'Task to Complete',
+        'priority' => 'medium',
+        'status' => 'not_done',
+    ]);
+
+    $response = $this->actingAs($user)->patch(route('tasks.done', [$project, $task]));
+
+    $response->assertRedirect(route('projects.show', $project));
+    $response->assertSessionHas('success');
+    expect($task->fresh()->status)->toBe('done');
+});
+
+test('mark done via tasks.complete alias also marks task as done', function () {
+    $user = User::factory()->create(['role' => 'user']);
+    $project = Project::create(['name' => 'Demo Project', 'creator_id' => $user->id]);
+    $project->members()->attach($user->id);
+
+    $task = Task::create([
+        'project_id' => $project->id,
+        'title' => 'Task to Complete via Alias',
+        'priority' => 'high',
+        'status' => 'in_progress',
+    ]);
+
+    $response = $this->actingAs($user)->patch(route('tasks.complete', [$project, $task]));
+
+    $response->assertRedirect(route('projects.show', $project));
+    expect($task->fresh()->status)->toBe('done');
+});
+
+test('stranger receives 403 and cross-list receives 404 on mark done', function () {
+    $owner = User::factory()->create(['role' => 'user']);
+    $stranger = User::factory()->create(['role' => 'user']);
+
+    $project1 = Project::create(['name' => 'Project 1', 'creator_id' => $owner->id]);
+    $project2 = Project::create(['name' => 'Project 2', 'creator_id' => $owner->id]);
+    $project1->members()->attach($owner->id);
+    $project2->members()->attach($owner->id);
+
+    $task = Task::create([
+        'project_id' => $project1->id,
+        'title' => 'Protected Task',
+        'priority' => 'medium',
+        'status' => 'not_done',
+    ]);
+
+    // Stranger forbidden
+    $this->actingAs($stranger)->patch(route('tasks.done', [$project1, $task]))->assertForbidden();
+    expect($task->fresh()->status)->toBe('not_done');
+
+    // Cross-project mismatch not found
+    $this->actingAs($owner)->patch(route('tasks.done', [$project2, $task]))->assertNotFound();
+    expect($task->fresh()->status)->toBe('not_done');
+});
+
+test('three conditions of project progress calculation (FR-16, DoD)', function () {
+    $user = User::factory()->create(['role' => 'user']);
+    $project = Project::create(['name' => 'Progress Project', 'creator_id' => $user->id]);
+    $project->members()->attach($user->id);
+
+    // Condition 1a: 0 tasks -> 'Not Started'
+    expect($project->fresh()->progress)->toBe('Not Started');
+
+    // Condition 1b: All tasks 'not_done' -> 'Not Started'
+    $task1 = Task::create([
+        'project_id' => $project->id,
+        'title' => 'Task 1',
+        'priority' => 'low',
+        'status' => 'not_done',
+    ]);
+    $task2 = Task::create([
+        'project_id' => $project->id,
+        'title' => 'Task 2',
+        'priority' => 'medium',
+        'status' => 'not_done',
+    ]);
+    expect($project->fresh()->progress)->toBe('Not Started');
+
+    // Condition 2a: One task in_progress, one not_done -> 'In Progress'
+    $task1->update(['status' => 'in_progress']);
+    expect($project->fresh()->progress)->toBe('In Progress');
+
+    // Condition 2b: One task done, one not_done -> 'In Progress'
+    $task1->update(['status' => 'done']);
+    expect($project->fresh()->progress)->toBe('In Progress');
+
+    // Condition 3: All tasks done -> 'Completed'
+    $task2->update(['status' => 'done']);
+    expect($project->fresh()->progress)->toBe('Completed');
+
+    // Verify progress is dynamic and not saved as a persistent table column in projects
+    expect(Schema::hasColumn('projects', 'progress'))->toBeFalse();
+});
+
+test('marking task done updates project progress on presentation (AC-11)', function () {
+    $user = User::factory()->create(['role' => 'user']);
+    $project = Project::create(['name' => 'Dynamic Progress Project', 'creator_id' => $user->id]);
+    $project->members()->attach($user->id);
+
+    $task = Task::create([
+        'project_id' => $project->id,
+        'title' => 'Sole Task',
+        'priority' => 'medium',
+        'status' => 'not_done',
+    ]);
+
+    expect($project->fresh()->progress)->toBe('Not Started');
+
+    $this->actingAs($user)->patch(route('tasks.done', [$project, $task]));
+
+    expect($project->fresh()->progress)->toBe('Completed');
+});
+
+test('task creation defaults priority to medium if omitted (BR-04)', function () {
+    $user = User::factory()->create(['role' => 'user']);
+    $project = Project::create(['name' => 'Default Priority Project', 'creator_id' => $user->id]);
+    $project->members()->attach($user->id);
+
+    $this->actingAs($user)->post(route('tasks.store', $project), [
+        'title' => 'Task with default priority',
+    ])->assertRedirect(route('projects.show', $project));
+
+    $this->assertDatabaseHas('tasks', [
+        'project_id' => $project->id,
+        'title' => 'Task with default priority',
+        'priority' => 'medium',
+        'status' => 'not_done',
+    ]);
+});
+
+test('assignee hook accepts assigned_user_ids without validation error or direct task_user management (FR-14, programmer.md)', function () {
+    $user = User::factory()->create(['role' => 'user']);
+    $project = Project::create(['name' => 'Hook Project', 'creator_id' => $user->id]);
+    $project->members()->attach($user->id);
+
+    // Store accepts assigned_user_ids hook
+    $response = $this->actingAs($user)->post(route('tasks.store', $project), [
+        'title' => 'Task with Hook',
+        'priority' => 'high',
+        'assigned_user_ids' => [1, 2, 3],
+    ]);
+
+    $response->assertRedirect(route('projects.show', $project));
+    $task = Task::where('title', 'Task with Hook')->first();
+    expect($task)->not->toBeNull();
+
+    // Update accepts assigned_user_ids hook
+    $updateResponse = $this->actingAs($user)->patch(route('tasks.update', [$project, $task]), [
+        'title' => 'Task with Hook Updated',
+        'priority' => 'low',
+        'status' => 'in_progress',
+        'assigned_user_ids' => [1],
+    ]);
+
+    $updateResponse->assertRedirect(route('projects.show', $project));
+    expect($task->fresh()->title)->toBe('Task with Hook Updated');
 });

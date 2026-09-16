@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTaskRequest;
+use App\Http\Requests\UpdateTaskRequest;
 use App\Models\Project;
 use App\Models\Task;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
     /**
      * Show task creation form.
-     * FR-14: Anggota project dapat membuat task di dalam project
+     * FR-10: Anggota daftar dapat membuat tugas
      */
     public function create(Project $project)
     {
-        // Authorization: hanya member project yang boleh
+        // Authorization: hanya member daftar yang boleh (BR-11, DoD)
         $this->authorize('view', $project);
 
         $priorities = ['low', 'medium', 'high'];
@@ -25,25 +25,21 @@ class TaskController extends Controller
 
     /**
      * Store a new task.
-     * FR-14: Membuat task
-     * FR-18: Task baru memiliki status default 'Not Done'
-     * FR-19: Priority dibatasi
+     * FR-10: Membuat tugas dengan judul, prioritas, tenggat waktu opsional
+     * BR-04: Default priority 'medium'
+     * BR-05 / FR-10: Status default 'not_done'
      */
-    public function store(Request $request, Project $project)
+    public function store(StoreTaskRequest $request, Project $project)
     {
         $this->authorize('view', $project);
 
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
-            'deadline' => ['nullable', 'date'],
-        ]);
+        $validated = $request->validated();
 
         $task = $project->tasks()->create([
             'title' => $validated['title'],
-            'priority' => $validated['priority'],
+            'priority' => $validated['priority'] ?? 'medium',
             'deadline' => $validated['deadline'] ?? null,
-            'status' => 'not_done', // FR-18: Status default
+            'status' => 'not_done', // FR-10: Status default not_done
         ]);
 
         return redirect()->route('projects.show', $project)
@@ -52,13 +48,13 @@ class TaskController extends Controller
 
     /**
      * Show task detail.
-     * FR-15: Anggota project dapat melihat detail task
+     * FR-11: Anggota daftar dapat melihat detail dan daftar tugas
      */
     public function show(Project $project, Task $task)
     {
         $this->authorize('view', $project);
 
-        // Pastikan task milik project yang diminta
+        // Pastikan task milik daftar yang diminta (mismatch protection)
         if ($task->project_id !== $project->id) {
             abort(404);
         }
@@ -68,7 +64,7 @@ class TaskController extends Controller
 
     /**
      * Show task edit form.
-     * FR-16: Anggota project dapat mengubah task
+     * FR-12: Anggota daftar dapat mengubah tugas
      */
     public function edit(Project $project, Task $task)
     {
@@ -86,10 +82,10 @@ class TaskController extends Controller
 
     /**
      * Update task.
-     * FR-16: Mengubah title, priority, deadline, status
-     * FR-20: Status boleh berpindah antarnilai tanpa approval
+     * FR-12: Mengubah judul, prioritas, tenggat waktu, dan status tugas
+     * BR-05: Status perpindahan diizinkan antarnilai not_done, in_progress, done
      */
-    public function update(Request $request, Project $project, Task $task)
+    public function update(UpdateTaskRequest $request, Project $project, Task $task)
     {
         $this->authorize('view', $project);
 
@@ -97,23 +93,50 @@ class TaskController extends Controller
             abort(404);
         }
 
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
-            'deadline' => ['nullable', 'date'],
-            'status' => ['required', Rule::in(['not_done', 'in_progress', 'done'])],
-        ]);
+        $validated = $request->validated();
 
-        $task->update($validated);
+        $task->update([
+            'title' => $validated['title'],
+            'priority' => $validated['priority'],
+            'deadline' => $validated['deadline'] ?? null,
+            'status' => $validated['status'],
+        ]);
 
         return redirect()->route('projects.show', $project)
             ->with('success', "Task '{$task->title}' berhasil diperbarui.");
     }
 
     /**
+     * Mark task as done.
+     * FR-12: Aksi menandai selesai mengubah status menjadi done
+     * AC-11: Given task ditandai selesai, then statusnya done dan progres daftar diperbarui
+     */
+    public function markDone(Project $project, Task $task)
+    {
+        $this->authorize('view', $project);
+
+        if ($task->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $task->update(['status' => 'done']);
+
+        return redirect()->route('projects.show', $project)
+            ->with('success', "Task '{$task->title}' berhasil ditandai selesai.");
+    }
+
+    /**
+     * Alias for markDone.
+     */
+    public function complete(Project $project, Task $task)
+    {
+        return $this->markDone($project, $task);
+    }
+
+    /**
      * Delete task.
-     * FR-17: Anggota project dapat menghapus permanen task
-     * BR-17: Hard delete
+     * FR-13: Anggota daftar dapat menghapus tugas
+     * BR-14: Hard delete; FK cascade menghapus assignment
      */
     public function destroy(Project $project, Task $task)
     {
