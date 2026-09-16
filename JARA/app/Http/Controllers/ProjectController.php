@@ -16,7 +16,7 @@ class ProjectController extends Controller
     {
         $projects = $request->user()
             ->projects()
-            ->with(['creator', 'tasks', 'members'])
+            ->with(['owner', 'tasks', 'members'])
             ->latest()
             ->get();
 
@@ -47,7 +47,7 @@ class ProjectController extends Controller
         $project = DB::transaction(function () use ($validated, $request) {
             $project = Project::create([
                 'name' => $validated['name'],
-                'creator_id' => $request->user()->id,
+                'owner_id' => $request->user()->id,
             ]);
 
             $project->members()->attach($request->user()->id);
@@ -66,7 +66,7 @@ class ProjectController extends Controller
     {
         Gate::authorize('view', $project);
 
-        $project->load(['creator', 'members', 'tasks']);
+        $project->load(['owner', 'members', 'tasks']);
 
         return view('projects.show', compact('project'));
     }
@@ -107,7 +107,7 @@ class ProjectController extends Controller
     {
         Gate::authorize('delete', $project);
 
-        $project->delete();
+        DB::transaction(fn () => $project->delete());
 
         return redirect()->route('projects.index')
             ->with('success', 'Project deleted successfully.');

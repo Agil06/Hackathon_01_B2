@@ -16,7 +16,7 @@ test('user can see project index with empty state when having no projects', func
     $response = $this->actingAs($user)->get(route('projects.index'));
 
     $response->assertOk();
-    $response->assertSee('No projects yet');
+    $response->assertSee('Belum ada daftar tugas');
 });
 
 test('user can only see projects they are a member of (FR-07)', function () {
@@ -50,6 +50,20 @@ test('user can create a project and automatically becomes a member (FR-08, AC-08
         ->and($project->members()->where('users.id', $user->id)->exists())->toBeTrue();
 
     $response->assertRedirect(route('projects.show', $project));
+});
+
+test('admin can create a project and becomes its owner and member', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $response = $this->actingAs($admin)->post(route('projects.store'), [
+        'name' => 'Admin Project',
+    ]);
+
+    $project = Project::where('name', 'Admin Project')->first();
+
+    $response->assertRedirect(route('projects.show', $project));
+    expect($project->owner_id)->toBe($admin->id)
+        ->and($project->hasMember($admin))->toBeTrue();
 });
 
 test('project creation validation requires a name and max 255 chars (BR-06)', function () {
@@ -134,8 +148,9 @@ test('project update validation rejects empty name (AC-11)', function () {
 
 test('member can permanently delete project with cascading tasks and memberships (FR-11, FR-24, AC-12)', function () {
     $user = User::factory()->create(['role' => 'user']);
+    $assignee = User::factory()->create(['role' => 'user']);
     $project = Project::create(['name' => 'Project To Delete', 'creator_id' => $user->id]);
-    $project->members()->attach($user->id);
+    $project->members()->attach([$user->id, $assignee->id]);
 
     $task = Task::create([
         'project_id' => $project->id,
@@ -143,6 +158,7 @@ test('member can permanently delete project with cascading tasks and memberships
         'priority' => 'medium',
         'status' => 'not_done',
     ]);
+    $task->assignees()->attach($assignee->id);
 
     $response = $this->actingAs($user)->delete(route('projects.destroy', $project));
 
@@ -151,6 +167,7 @@ test('member can permanently delete project with cascading tasks and memberships
     $this->assertDatabaseMissing('projects', ['id' => $project->id]);
     $this->assertDatabaseMissing('tasks', ['id' => $task->id]);
     $this->assertDatabaseMissing('project_user', ['project_id' => $project->id]);
+    $this->assertDatabaseMissing('task_user', ['task_id' => $task->id]);
 });
 
 test('non-member cannot delete project and receives 403 (FR-13, AC-10)', function () {

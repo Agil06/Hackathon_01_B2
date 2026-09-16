@@ -1,74 +1,80 @@
-# Pembagian Kerja Programmer — JARA
+# Pembagian Kerja Programmer JARA
 
-## Aturan Bersama
+Pembagian ini memaksimalkan pekerjaan paralel. Foundation harus selesai dan di-merge lebih dahulu karena semua fitur bergantung pada schema, relasi, middleware, dan naming yang sama. Setelah itu, empat paket dapat dikerjakan terpisah dengan kontrak berikut.
 
-- Branch utama: `main`; branch fitur: `feature/<nama-fitur>`.
-- PM mengunci schema, route, field, enum, dan naming sebelum coding.
-- Programmer hanya mengubah file dalam scope-nya.
-- Nilai tetap: role `admin|user`, priority `low|medium|high`, status `not_done|in_progress|done`.
-- Shared files (`routes/web.php`, migrations, models, policy, layout) hanya diubah oleh **al**.
+## Kontrak Bersama yang Tidak Boleh Diubah Sepihak
 
-## Assignment Berbasis Fitur
+- Role: `admin|user`; priority: `low|medium|high`; status: `not_done|in_progress|done`.
+- Gunakan istilah UI **Daftar Tugas**. Jika kode lama memakai `Project`, nama model/tabel boleh tetap `Project`/`projects`, tetapi kontrak relasi tidak berubah.
+- `owner_id` adalah pemilik daftar; `list_user`/`project_user` adalah membership unik; `task_user` adalah assignment unik.
+- Semua query menggunakan Eloquent/query builder atau prepared statement parameterized. Semua proses multi-row memakai `DB::transaction`.
+- Setiap feature branch hanya mengubah file yang menjadi miliknya. Perubahan shared contract diajukan sebagai PR terpisah kepada Al.
 
-| Programmer | Fitur yang direalisasikan | Requirement | Branch | Hasil akhir yang harus terlihat |
+## Pembagian Utama
+
+| Programmer | Paket mandiri setelah foundation | Requirement | Branch | Dependency |
 |---|---|---|---|---|
-| **al** | Project Management + Project Progress | FR-07–11, FR-21–25 | `feature/shared-foundation`, lalu `feature/projects` | User dapat membuat, melihat, mengubah, dan menghapus project; progress menampilkan `Not Started`, `In Progress`, atau `Completed` secara benar. |
-| **galang** | Authentication + Task Management | FR-01–03, FR-14–20 | `feature/authentication`, lalu `feature/tasks` | Register/login/logout berfungsi; member dapat CRUD task, memilih priority/deadline, dan mengubah status dua arah. |
-| **daniel** | Admin User Management | FR-04–06 | `feature/admin-users` | Admin dapat melihat, membuat, dan menghapus permanen akun; regular user ditolak; admin tidak dapat menghapus diri sendiri. |
-| **abhi** | Project Collaboration + Membership Authorization | FR-12–13 | `feature/collaboration` | Member dapat menambahkan akun terdaftar melalui email; collaborator langsung mendapat akses setara; non-member mendapat 403. |
+| **Al** | Foundation, daftar tugas, ownership, membership management | FR-04–09, FR-16–17 | `feature/foundation-lists` | Tidak ada; menjadi baseline tim. |
+| **Agil** | Authentication dan admin account management | FR-01–03 | `feature/auth-admin` | `users`, role middleware, dan shared layout dari foundation. |
+| **Galang** | Task CRUD, status, prioritas, deadline, progress presentation | FR-10–13, FR-16 | `feature/tasks` | Model/list policy dari foundation. |
+| **Abhi** | Multi-assignee task dan halaman tugas saya | FR-14–15 | `feature/task-assignees` | Task CRUD Galang sudah di-merge; membership/list policy dari foundation. |
 
-## Detail Fitur per Programmer
+## Detail Scope dan Definition of Done
 
-### al — Project Management & Progress
+### Al - Foundation Daftar dan Membership
 
-- Membuat shared foundation: migration, model relationship, routes, policy, layout, dan admin seeder.
-- Merealisasikan halaman daftar, create, detail, edit, dan delete project.
-- Creator otomatis menjadi member saat project dibuat.
-- Progress dihitung dari status task dan tidak disimpan di database.
-- **DoD:** migration dapat direproduksi; project CRUD member-only; cascade delete dan tiga kondisi progress lulus.
+- Membuat migration/relasi `users`, `lists`/`projects`, `list_user`/`project_user`, `tasks`, dan `task_user`, termasuk FK serta unique index.
+- Membuat `ListPolicy`/`ProjectPolicy`, middleware role admin, seeder admin, layout dasar, route naming skeleton, dan test support.
+- Membuat daftar: index, create, show, edit, update, delete; create list + owner membership wajib dalam transaction.
+- Membuat tambah/hapus anggota oleh owner; owner tidak dapat dihapus; hapus daftar meng-cascade seluruh data turunan.
+- Menyediakan partial/contract halaman detail agar Galang dan Abhi dapat memasang fitur tanpa mengubah controller/list view utama.
+- **DoD:** migration fresh berhasil; owner/member/non-member berbeda haknya; rollback pembuatan daftar terbukti; membership duplicate/owner removal ditolak.
 
-### galang — Authentication & Task Management
+### Agil - Authentication dan Administrasi Akun
 
-- Merealisasikan register, login, dan logout berbasis session.
-- Merealisasikan halaman create, detail, edit, dan delete task.
-- Task baru berstatus `not_done`; priority hanya tiga nilai; deadline opsional.
-- Semua perubahan status `not_done`, `in_progress`, dan `done` diperbolehkan.
-- **DoD:** auth dan task CRUD berjalan; input invalid ditolak; task lintas project/non-member tidak dapat diakses.
+- Membuat register, login, logout, session regeneration/invalidation, dan guest/auth middleware integration.
+- Membuat area admin list/create/delete account, role validation, password hashing, dan larangan self-delete.
+- Tidak mengubah schema/route shared tanpa persetujuan Al; gunakan route slot yang disediakan foundation.
+- **DoD:** register/login/logout; password tidak plaintext; admin-only area 403 untuk user; duplicate email dan self-delete ditolak; feature tests lulus.
 
-### daniel — Admin User Management
+### Galang - Task Management
 
-- Merealisasikan halaman daftar dan form pembuatan akun.
-- Admin dapat membuat akun role `admin` atau `user`.
-- Admin dapat hard-delete akun lain, tetapi tidak akun sendiri.
-- **DoD:** operasi admin persisted; duplicate email ditolak; regular user memperoleh 403; email dapat dipakai lagi setelah akun dihapus.
+- Membuat create, read, update, delete, dan mark-done untuk task bersarang dalam daftar.
+- Validasi title, priority, deadline, status; task baru `not_done`; pastikan task benar milik daftar URL dan actor adalah member.
+- Menyajikan progres daftar dari task yang dibaca, tanpa menyimpan kolom progress.
+- Expose hook data assignee (misalnya `assigned_user_ids`) untuk Abhi, tetapi tidak mengelola tabel `task_user`.
+- **DoD:** task CRUD member-only; enum/date invalid dan cross-list task ditolak; tiga kondisi progress benar; delete task menghapus assignment lewat FK.
 
-### abhi — Collaboration & Membership Authorization
+### Abhi - Multi Assignee dan Tugas Saya
 
-- Merealisasikan form penambahan collaborator berdasarkan email.
-- Akun yang ditemukan langsung ditambahkan tanpa invitation/approval.
-- Menolak email tidak terdaftar dan membership duplicate.
-- Memastikan creator dan collaborator mempunyai akses project/task yang sama.
-- **DoD:** collaborator langsung melihat dan mengelola project; non-member tidak dapat melihat atau memanipulasi project/task.
+- Menggunakan migration dan relasi `task_user` yang telah disediakan Al; tidak membuat migration shared baru.
+- Membuat UI dan controller/service untuk memilih banyak anggota daftar sebagai assignee ketika create/edit task.
+- Memvalidasi semua assignee adalah anggota daftar, mencegah duplicate, dan menyinkronkan penambahan/penghapusan assignment dalam satu transaction dengan perubahan task.
+- Membuat halaman/section **Tugas Saya** yang hanya menampilkan task dengan assignment bagi user login.
+- **DoD:** satu task dapat memiliki banyak assignee; non-member tidak dapat dipilih; kegagalan satu assignee membatalkan seluruh perubahan; daftar tugas saya benar dan tidak membocorkan task lain.
 
-## File Ownership
+## Urutan Integrasi
 
-- **al:** `routes/web.php`, `database/*`, `app/Models/*`, `app/Policies/*`, middleware admin, shared layout, `ProjectController`, `views/projects/index|create|edit|show`.
-- **galang:** `AuthController`, `views/auth/*`, `TaskController`, `views/tasks/*`, `views/projects/_task-list.blade.php`.
-- **daniel:** `AdminUserController`, `views/admin/users/*`.
-- **abhi:** `CollaboratorController`, `views/projects/_collaborator-form.blade.php`.
+1. Al mengerjakan dan merge `feature/foundation-lists` terlebih dahulu.
+2. Agil dan Galang membuat branch dari `main` setelah foundation merge; keduanya independen dan dapat berjalan paralel.
+3. Setelah task CRUD Galang ter-merge, Abhi membuat branch dari `main` terbaru dan mengintegrasikan multi-assignee tanpa mengubah kontrak task Galang.
+4. Urutan merge yang disarankan: foundation → auth-admin dan tasks (bebas urutan) → task-assignees → regression test bersama.
 
-## Urutan Kerja dan Merge
+Ketergantungan Abhi pada Galang tidak dapat dibuat sepenuhnya independen karena assignment adalah relasi dari task dan form create/edit task. Pemisahan controller/service serta hook pada form task menjaga konflik tetap kecil.
 
-1. **al** menyelesaikan dan PM merge `feature/shared-foundation`.
-2. Semua programmer membuat branch baru dari `main` terbaru.
-3. Authentication, Admin Users, Projects, dan Collaboration dikerjakan paralel.
-4. Setelah Authentication selesai, **galang** mengerjakan `feature/tasks` dari `main`, bukan dari branch authentication.
-5. Urutan merge: `shared-foundation` → `authentication` → `admin-users` → `projects` → `collaboration` → `tasks`.
+## File Ownership Awal
 
-## Checklist Sebelum Push
+| Owner | File/folder utama |
+|---|---|
+| Al | migrations foundation, `app/Models`, policy, middleware, `List/ProjectController`, `resources/views/lists` atau `projects`, layout, route skeleton. |
+| Agil | `AuthController`, `AdminUserController`, `resources/views/auth`, `resources/views/admin`, auth/admin tests. |
+| Galang | `TaskController`, request validation task, `resources/views/tasks`, task/progress tests. |
+| Abhi | `TaskAssignmentController` atau service, `resources/views/tasks/_assignees`, `resources/views/tasks/mine`, assignment tests. |
 
-- [ ] Scope dan file sesuai assignment.
-- [ ] Tidak mengubah contract tanpa persetujuan PM.
-- [ ] Validation, authorization, redirect, dan persistence sudah diuji.
-- [ ] Tidak ada error pada fitur terkait.
-- [ ] Commit jelas dan branch sudah di-push untuk review PM.
+## Checklist sebelum Merge
+
+- [ ] Tidak ada perubahan di luar scope tanpa persetujuan owner file.
+- [ ] Validation dan authorization diuji untuk jalur sukses serta gagal.
+- [ ] Proses multi-row memakai transaction dan memiliki test rollback.
+- [ ] Query memakai Eloquent/query builder atau prepared statement.
+- [ ] Migration, test, dan smoke test dijalankan dari database bersih.

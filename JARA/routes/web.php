@@ -41,7 +41,12 @@ Route::middleware('auth')->prefix('projects/{project}')->group(function () {
     Route::patch('tasks/{task}/done', [TaskController::class, 'markDone'])->name('tasks.done');
     Route::patch('tasks/{task}/complete', [TaskController::class, 'markDone'])->name('tasks.complete');
     Route::resource('tasks', TaskController::class)->except(['index']);
+    Route::get('tasks/{task}/assignees/edit', [TaskAssignmentController::class, 'edit'])->name('tasks.assignees.edit');
+    Route::put('tasks/{task}/assignees', [TaskAssignmentController::class, 'update'])->name('tasks.assignees.update');
 });
+
+Route::middleware('auth')->get('/tasks/mine', [TaskAssignmentController::class, 'mine'])
+    ->name('tasks.mine');
 
 // ============================================
 // COLLABORATOR ROUTES - ABHI
@@ -49,6 +54,8 @@ Route::middleware('auth')->prefix('projects/{project}')->group(function () {
 
 Route::middleware('auth')->post('/projects/{project}/collaborators', [CollaboratorController::class, 'store'])
     ->name('collaborators.store');
+Route::middleware('auth')->delete('/projects/{project}/collaborators/{user}', [CollaboratorController::class, 'destroy'])
+    ->name('collaborators.destroy');
 
 // ============================================
 // ADMIN ROUTES - DANIEL

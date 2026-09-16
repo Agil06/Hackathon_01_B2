@@ -17,7 +17,7 @@ class AuthController extends Controller
     public function showRegisterForm()
     {
         if (Auth::check()) {
-            return redirect()->route('projects.index');
+            return redirect()->route('home');
         }
         return view('auth.register');
     }
@@ -54,7 +54,7 @@ class AuthController extends Controller
     public function showLoginForm()
     {
         if (Auth::check()) {
-            return redirect()->route('projects.index');
+            return redirect()->route('home');
         }
         return view('auth.login');
     }

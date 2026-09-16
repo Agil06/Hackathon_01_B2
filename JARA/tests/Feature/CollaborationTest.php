@@ -115,7 +115,7 @@ test('collaborator immediately sees the project in project list (DoD, FR-07)', f
     $responseAfter->assertSee('Team Collaboration Project');
 });
 
-test('collaborator has equal access to view, update, and delete the project (DoD)', function () {
+test('collaborator can view the project but cannot update or delete it', function () {
     $owner = User::factory()->create(['role' => 'user']);
     $collaborator = User::factory()->create(['name' => 'Bob Collab', 'role' => 'user']);
 
@@ -125,15 +125,15 @@ test('collaborator has equal access to view, update, and delete the project (DoD
     // Collaborator can view project details
     $this->actingAs($collaborator)->get(route('projects.show', $project))->assertOk()->assertSee('Shared Project');
 
-    // Collaborator can update project
+    // Only the owner can update the project
     $this->actingAs($collaborator)->patch(route('projects.update', $project), [
         'name' => 'Updated by Bob',
-    ])->assertRedirect(route('projects.show', $project));
-    expect($project->fresh()->name)->toBe('Updated by Bob');
+    ])->assertForbidden();
+    expect($project->fresh()->name)->toBe('Shared Project');
 
-    // Collaborator can delete project
-    $this->actingAs($collaborator)->delete(route('projects.destroy', $project))->assertRedirect(route('projects.index'));
-    $this->assertDatabaseMissing('projects', ['id' => $project->id]);
+    // Only the owner can delete the project
+    $this->actingAs($collaborator)->delete(route('projects.destroy', $project))->assertForbidden();
+    $this->assertDatabaseHas('projects', ['id' => $project->id]);
 });
 
 test('collaborator has equal access to create, view, update, and delete tasks in project (DoD)', function () {
@@ -173,7 +173,7 @@ test('collaborator has equal access to create, view, update, and delete tasks in
     $this->assertDatabaseMissing('tasks', ['id' => $task->id]);
 });
 
-test('collaborator can add another collaborator to the project (equality of access, FR-12)', function () {
+test('collaborator cannot manage project membership', function () {
     $owner = User::factory()->create(['role' => 'user']);
     $collab1 = User::factory()->create(['role' => 'user']);
     $collab2 = User::factory()->create(['name' => 'Third Member', 'role' => 'user', 'email' => 'third@example.com']);
@@ -181,13 +181,54 @@ test('collaborator can add another collaborator to the project (equality of acce
     $project = Project::create(['name' => 'Chain Project', 'creator_id' => $owner->id]);
     $project->members()->attach([$owner->id, $collab1->id]);
 
-    // Collab1 adds Collab2
+    // Only the owner can add members
     $response = $this->actingAs($collab1)->post(route('collaborators.store', $project), [
         'email' => 'third@example.com',
     ]);
 
-    $response->assertRedirect(route('projects.show', $project));
-    expect($project->hasMember($collab2))->toBeTrue();
+    $response->assertForbidden();
+    expect($project->hasMember($collab2))->toBeFalse();
+});
+
+test('owner can remove a member and clear their task assignments', function () {
+    $owner = User::factory()->create(['role' => 'user']);
+    $member = User::factory()->create(['role' => 'user']);
+
+    $project = Project::create(['name' => 'Removal Project', 'creator_id' => $owner->id]);
+    $project->members()->attach([$owner->id, $member->id]);
+    $task = Task::create([
+        'project_id' => $project->id,
+        'title' => 'Assigned Task',
+        'priority' => 'medium',
+        'status' => 'not_done',
+    ]);
+    $task->assignees()->attach($member->id);
+
+    $this->actingAs($owner)->delete(route('collaborators.destroy', [$project, $member]))
+        ->assertRedirect(route('projects.show', $project));
+
+    $this->assertDatabaseMissing('project_user', [
+        'project_id' => $project->id,
+        'user_id' => $member->id,
+    ]);
+    $this->assertDatabaseMissing('task_user', [
+        'task_id' => $task->id,
+        'user_id' => $member->id,
+    ]);
+});
+
+test('owner cannot remove themselves from a project', function () {
+    $owner = User::factory()->create(['role' => 'user']);
+    $project = Project::create(['name' => 'Owner Project', 'creator_id' => $owner->id]);
+    $project->members()->attach($owner->id);
+
+    $this->actingAs($owner)->delete(route('collaborators.destroy', [$project, $owner]))
+        ->assertSessionHasErrors(['email']);
+
+    $this->assertDatabaseHas('project_user', [
+        'project_id' => $project->id,
+        'user_id' => $owner->id,
+    ]);
 });
 
 test('collaborator form is displayed on project detail page for members', function () {
@@ -198,8 +239,8 @@ test('collaborator form is displayed on project detail page for members', functi
     $response = $this->actingAs($owner)->get(route('projects.show', $project));
 
     $response->assertOk();
-    $response->assertSee('Add Collaborator');
-    $response->assertSee('Collaborator Email');
+    $response->assertSee('Tambah Anggota');
+    $response->assertSee('Email Anggota');
     $response->assertSee(route('collaborators.store', $project));
 });
 
