@@ -98,7 +98,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-05: Admin dapat membuka halaman formulir penambahan pengguna.
+     * FR-03 & UC-04: Admin dapat membuka halaman formulir penambahan pengguna.
      */
     public function test_admin_can_view_create_user_form(): void
     {
@@ -109,7 +109,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-05 & AC-06: Admin dapat membuat akun pengguna reguler baru.
+     * FR-03 & BR-01 & BR-02 & AC-03: Admin dapat membuat akun pengguna reguler baru dengan role 'user' dan password hash.
      */
     public function test_admin_can_create_regular_user(): void
     {
@@ -138,7 +138,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-05 & AC-06: Admin dapat membuat akun admin baru.
+     * FR-03 & BR-02 & AC-03: Admin dapat membuat akun pengguna baru dengan role 'admin'.
      */
     public function test_admin_can_create_admin_user(): void
     {
@@ -161,10 +161,12 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * BR-01 & AC-06: Pembuatan akun ditolak jika email sudah terdaftar (duplikat).
+     * BR-01 & BR-10 & AC-03: Pembuatan akun ditolak jika email sudah terdaftar (duplikat).
      */
     public function test_duplicate_email_is_rejected(): void
     {
+        $initialCount = User::count();
+
         $response = $this->actingAs($this->adminUser)
             ->post(route('admin.users.store'), [
                 'name' => 'Duplikat User',
@@ -175,10 +177,11 @@ class AdminUserManagementTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors('email');
+        $this->assertEquals($initialCount, User::count());
     }
 
     /**
-     * BR-02: Password minimal 8 karakter dan harus dikonfirmasi saat pembuatan akun.
+     * BR-01 & BR-10: Password minimal 8 karakter dan harus dikonfirmasi saat pembuatan akun.
      */
     public function test_password_must_be_minimum_eight_chars_and_confirmed(): void
     {
@@ -192,6 +195,7 @@ class AdminUserManagementTest extends TestCase
                 'role' => 'user',
             ]);
         $response->assertSessionHasErrors('password');
+        $this->assertDatabaseMissing('users', ['email' => 'short@example.com']);
 
         // Konfirmasi password tidak cocok
         $response = $this->actingAs($this->adminUser)
@@ -203,10 +207,11 @@ class AdminUserManagementTest extends TestCase
                 'role' => 'user',
             ]);
         $response->assertSessionHasErrors('password');
+        $this->assertDatabaseMissing('users', ['email' => 'mismatch@example.com']);
     }
 
     /**
-     * BR-03: Hanya role 'admin' dan 'user' yang diperbolehkan.
+     * BR-02 & BR-10: Hanya role 'admin' dan 'user' yang diperbolehkan.
      */
     public function test_role_must_be_admin_or_user(): void
     {
@@ -220,6 +225,29 @@ class AdminUserManagementTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors('role');
+        $this->assertDatabaseMissing('users', ['email' => 'invalidrole@example.com']);
+    }
+
+    /**
+     * Section 10: Validasi gagal mempertahankan old input kecuali password.
+     */
+    public function test_create_user_validation_failure_preserves_old_input_except_passwords(): void
+    {
+        $response = $this->actingAs($this->adminUser)
+            ->post(route('admin.users.store'), [
+                'name' => 'Form Preserved',
+                'email' => 'formpreserved@example.com',
+                'role' => 'admin',
+                'password' => 'short',
+                'password_confirmation' => 'mismatch',
+            ]);
+
+        $response->assertSessionHasErrors(['password']);
+        $this->assertEquals('Form Preserved', session()->getOldInput('name'));
+        $this->assertEquals('formpreserved@example.com', session()->getOldInput('email'));
+        $this->assertEquals('admin', session()->getOldInput('role'));
+        $this->assertFalse(session()->hasOldInput('password'));
+        $this->assertFalse(session()->hasOldInput('password_confirmation'));
     }
 
     /**

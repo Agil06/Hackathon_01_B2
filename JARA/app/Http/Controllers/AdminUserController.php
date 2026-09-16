@@ -41,7 +41,7 @@ class AdminUserController extends Controller
     }
 
     /**
-     * Menampilkan formulir pembuatan akun pengguna baru (FR-05).
+     * Menampilkan formulir pembuatan akun pengguna baru (FR-03, UC-04).
      */
     public function create(): View
     {
@@ -51,7 +51,11 @@ class AdminUserController extends Controller
     }
 
     /**
-     * Menyimpan akun baru dengan role 'admin' atau 'user' (FR-05).
+     * Menyimpan akun baru dengan role 'admin' atau 'user' (FR-03, UC-04).
+     * BR-01: Email unik, valid, dan password minimal 8 karakter terkonfirmasi serta di-hash.
+     * BR-02: Role yang diizinkan hanya 'admin' atau 'user'.
+     * BR-10: Validasi server ketat, input tidak valid ditolak tanpa mengubah database.
+     * AC-03: Akun pengguna berhasil dibuat oleh admin.
      */
     public function store(Request $request): RedirectResponse
     {
