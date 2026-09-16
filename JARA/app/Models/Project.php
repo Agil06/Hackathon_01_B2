@@ -13,6 +13,7 @@ class Project extends Model
     use HasFactory;
 
     protected $fillable = [
+        'owner_id',
         'creator_id',
         'name',
     ];
@@ -21,12 +22,37 @@ class Project extends Model
         'progress',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'owner_id' => 'integer',
+        ];
+    }
+
     /**
      * The user who created the project.
      */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * Legacy alias for older project code.
+     */
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'creator_id');
+        return $this->owner();
+    }
+
+    public function setCreatorIdAttribute(int $value): void
+    {
+        $this->attributes['owner_id'] = $value;
+    }
+
+    public function getCreatorIdAttribute(): ?int
+    {
+        return $this->owner_id;
     }
 
     /**

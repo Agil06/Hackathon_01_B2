@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'JARA') — Project Management</title>
+    <title>@yield('title', 'JARA') — Daftar Tugas</title>
 
     <!-- Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -475,7 +475,7 @@
             <a href="{{ route('home') }}" class="brand-logo">JARA</a>
             @auth
                 <ul class="nav-links">
-                    <li><a href="{{ route('projects.index') }}" class="{{ request()->routeIs('projects.*') ? 'active' : '' }}">Projects</a></li>
+                    <li><a href="{{ route('projects.index') }}" class="{{ request()->routeIs('projects.*') ? 'active' : '' }}">Daftar Tugas</a></li>
                     @if(auth()->user()->role === 'admin' && Route::has('admin.users.index'))
                         <li><a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.*') ? 'active' : '' }}">Admin Users</a></li>
                     @endif
@@ -532,7 +532,7 @@
     </main>
 
     <footer class="footer">
-        &copy; {{ date('Y') }} JARA — Clarity & Precision Project Management
+        &copy; {{ date('Y') }} JARA — Clarity & Precision Daftar Tugas
     </footer>
 </body>
 </html>

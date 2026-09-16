@@ -4,10 +4,10 @@
 
 @section('content')
 <div style="margin-bottom: 1.5rem;">
-    <a href="{{ route('projects.index') }}" style="color: var(--text-muted); font-size: 13px;">&larr; Back to Projects</a>
+    <a href="{{ route('projects.index') }}" style="color: var(--text-muted); font-size: 13px;">&larr; Kembali ke Daftar Tugas</a>
 </div>
 
-<!-- Project Header Card -->
+<!-- Daftar Tugas Header Card -->
 <div class="card" style="margin-bottom: 2rem;">
     <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
         <div>
@@ -23,18 +23,22 @@
                 <span class="badge {{ $progressClass }}" style="font-size: 12px; padding: 4px 10px;">{{ $project->progress }}</span>
             </div>
             <p style="color: var(--text-muted); font-size: 13px;">
-                Created by <strong style="color: var(--text-main);">{{ $project->creator->name ?? 'Unknown' }}</strong> ({{ $project->creator->email ?? '' }})
+                Owned by <strong style="color: var(--text-main);">{{ $project->owner->name ?? 'Unknown' }}</strong> ({{ $project->owner->email ?? '' }})
                 &bull; {{ $project->created_at->format('M d, Y') }}
             </p>
         </div>
 
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <a href="{{ route('projects.edit', $project) }}" class="btn btn-secondary btn-sm">Edit Project</a>
-            <form method="POST" action="{{ route('projects.destroy', $project) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this project? All associated tasks and memberships will be permanently deleted.');">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-danger btn-sm">Delete Project</button>
-            </form>
+            @can('update', $project)
+                <a href="{{ route('projects.edit', $project) }}" class="btn btn-secondary btn-sm">Ubah Daftar Tugas</a>
+            @endcan
+            @can('delete', $project)
+                <form method="POST" action="{{ route('projects.destroy', $project) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this project? All associated tasks and memberships will be permanently deleted.');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger btn-sm">Hapus Daftar Tugas</button>
+                </form>
+            @endcan
         </div>
     </div>
 </div>
@@ -117,7 +121,7 @@
     <!-- Members Section & Collaborators -->
     <div>
         <div style="margin-bottom: 1rem;">
-            <h2 style="font-size: 1.25rem;">Members ({{ $project->members->count() }})</h2>
+            <h2 style="font-size: 1.25rem;">Anggota ({{ $project->members->count() }})</h2>
         </div>
 
         <div class="card" style="margin-bottom: 1.5rem;">
@@ -128,10 +132,18 @@
                             <div style="font-weight: 500; font-size: 13px; color: var(--text-main);">{{ $member->name }}</div>
                             <div style="font-size: 12px; color: var(--text-muted);">{{ $member->email }}</div>
                         </div>
-                        @if($member->id === $project->creator_id)
-                            <span class="badge" style="background-color: var(--primary); color: #ffffff;">Creator</span>
+                        @if($member->id === $project->owner_id)
+                            <span class="badge" style="background-color: var(--primary); color: #ffffff;">Owner</span>
                         @else
-                            <span class="badge" style="background-color: var(--recessed); color: var(--text-muted);">Collaborator</span>
+                            @can('manageMembers', $project)
+                                <form method="POST" action="{{ route('collaborators.destroy', [$project, $member]) }}" onsubmit="return confirm('Remove this member from the project?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                                </form>
+                            @else
+                                <span class="badge" style="background-color: var(--recessed); color: var(--text-muted);">Member</span>
+                            @endcan
                         @endif
                     </li>
                 @endforeach
@@ -139,9 +151,11 @@
         </div>
 
         <!-- Add Collaborator Form (abhi's feature) -->
-        @if(View::exists('projects._collaborator-form'))
+        @can('manageMembers', $project)
+            @if(View::exists('projects._collaborator-form'))
             @include('projects._collaborator-form', ['project' => $project])
-        @endif
+            @endif
+        @endcan
     </div>
 </div>
 @endsection

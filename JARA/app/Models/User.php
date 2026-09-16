@@ -56,7 +56,12 @@ class User extends Authenticatable
      */
     public function createdProjects(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(Project::class, 'creator_id');
+        return $this->ownedProjects();
+    }
+
+    public function ownedProjects(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Project::class, 'owner_id');
     }
 
     /**
@@ -66,5 +71,10 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Project::class, 'project_user')
             ->withTimestamps();
+    }
+
+    public function assignedTasks(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Task::class, 'task_user')->withTimestamps();
     }
 }
