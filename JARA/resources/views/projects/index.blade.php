@@ -3,10 +3,11 @@
 @section('title', 'Projects')
 
 @section('content')
-<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+<div class="projects-hero">
     <div>
-        <h1 style="font-size: 1.75rem; margin-bottom: 0.25rem;">Projects</h1>
-        <p style="color: var(--text-muted); font-size: 13px;">Overview of projects you are participating in.</p>
+        <span class="eyebrow">WORKSPACE</span>
+        <h1>Projects</h1>
+        <p>Semua pekerjaan tim Anda, tersusun rapi dalam satu tempat.</p>
     </div>
     @can('create', App\Models\Project::class)
         <a href="{{ route('projects.create') }}" class="btn btn-primary">+ Create Project</a>
@@ -14,7 +15,7 @@
 </div>
 
 @if($projects->isEmpty())
-    <div class="card" style="text-align: center; padding: 4rem 2rem;">
+    <div class="card empty-projects">
         <h3 style="font-size: 1.125rem; margin-bottom: 0.5rem; color: var(--text-main);">No projects yet</h3>
         <p style="color: var(--text-muted); margin-bottom: 1.5rem;">You are not a member of any projects. Create your first project to get started.</p>
         @can('create', App\Models\Project::class)
@@ -22,7 +23,7 @@
         @endcan
     </div>
 @else
-    <div class="card" style="padding: 0; overflow: hidden;">
+    <div class="card project-table-card">
         <table class="data-table">
             <thead>
                 <tr>
@@ -37,7 +38,7 @@
                 @foreach($projects as $project)
                     <tr>
                         <td>
-                            <a href="{{ route('projects.show', $project) }}" style="font-weight: 600; color: var(--text-main); font-size: 14px;">
+                            <a href="{{ route('projects.show', $project) }}" class="project-name">
                                 {{ $project->name }}
                             </a>
                         </td>

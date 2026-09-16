@@ -5,6 +5,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\CollaboratorController;
+use App\Http\Controllers\TaskAssignmentController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -39,7 +40,12 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware('auth')->prefix('projects/{project}')->group(function () {
     Route::resource('tasks', TaskController::class)->except(['index']);
+    Route::get('tasks/{task}/assignees/edit', [TaskAssignmentController::class, 'edit'])->name('tasks.assignees.edit');
+    Route::put('tasks/{task}/assignees', [TaskAssignmentController::class, 'update'])->name('tasks.assignees.update');
 });
+
+Route::middleware('auth')->get('/tasks/mine', [TaskAssignmentController::class, 'mine'])
+    ->name('tasks.mine');
 
 // ============================================
 // COLLABORATOR ROUTES - ABHI
