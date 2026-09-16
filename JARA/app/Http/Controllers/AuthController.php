@@ -96,8 +96,9 @@ class AuthController extends Controller
 
     /**
      * Handle logout.
-     * FR-03: Pengguna terautentikasi dapat logout
-     * BR: Session diregenerasi saat logout
+     * FR-02: Pengguna terdaftar dapat login dan logout menggunakan sesi yang aman.
+     * BR-13: Sesi diinvalidasi dan token CSRF diregenerasi saat logout untuk keamanan sesi.
+     * AC-02: Pengguna keluar dari status autentikasi dan diarahkan kembali ke halaman login.
      */
     public function logout(Request $request)
     {
@@ -106,7 +107,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        // AC-04: User diarahkan ke login
         return redirect()->route('login')
             ->with('success', 'Anda telah logout.');
     }

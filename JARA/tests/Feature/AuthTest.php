@@ -203,13 +203,30 @@ test('login redirects authenticated user to intended URL (FR-02, AC-02)', functi
     $this->assertAuthenticatedAs($user);
 });
 
-test('authenticated user can logout (FR-03, AC-04)', function () {
+test('authenticated user can logout with secure session invalidation and flash message (FR-02, BR-13, AC-02)', function () {
     $user = User::factory()->create(['role' => 'user']);
 
     $response = $this->actingAs($user)->post(route('logout'));
 
     $response->assertRedirect(route('login'));
+    $response->assertSessionHas('success');
     $this->assertGuest();
+});
+
+test('unauthenticated guest cannot call logout route and is redirected to login (BR-11)', function () {
+    $response = $this->post(route('logout'));
+
+    $response->assertRedirect(route('login'));
+    $this->assertGuest();
+});
+
+test('logout route rejects GET method to enforce CSRF-protected POST (Section 11)', function () {
+    $user = User::factory()->create(['role' => 'user']);
+
+    $response = $this->actingAs($user)->get('/logout');
+
+    $response->assertStatus(405);
+    $this->assertAuthenticatedAs($user);
 });
 
 test('already authenticated user is redirected when visiting login or register', function () {
