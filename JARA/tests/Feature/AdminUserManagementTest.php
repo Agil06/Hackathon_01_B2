@@ -251,7 +251,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-06 & AC-07: Admin dapat menghapus permanen akun lain.
+     * FR-03 & BR-14 & AC-03: Admin dapat menghapus permanen akun lain.
      */
     public function test_admin_can_delete_other_user(): void
     {
@@ -273,7 +273,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * BR-01 & AC-07: Email dari akun yang dihapus permanen dapat didaftarkan kembali.
+     * BR-01 & AC-03: Email dari akun yang dihapus permanen dapat didaftarkan kembali.
      */
     public function test_deleted_user_email_can_be_reused(): void
     {
@@ -303,7 +303,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * BR-05 & AC-07: Admin tidak dapat menghapus akunnya sendiri (self-delete ditolak).
+     * FR-03 & Section 5 & AC-03: Admin tidak dapat menghapus akunnya sendiri (self-delete ditolak).
      */
     public function test_admin_cannot_delete_own_account(): void
     {
@@ -321,7 +321,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * BR-17 & ERD: Menghapus user creator menghapus project miliknya, tasks, dan keanggotaan secara cascade.
+     * BR-14 & BR-15 & Section 5: Menghapus user creator menghapus project miliknya, tasks, dan keanggotaan secara cascade.
      */
     public function test_deleting_creator_cascades_projects_and_tasks(): void
     {
@@ -362,5 +362,36 @@ class AdminUserManagementTest extends TestCase
 
         // Collaborator akunnya sendiri tetap ada
         $this->assertDatabaseHas('users', ['id' => $collaborator->id]);
+    }
+
+    /**
+     * Section 5 & Section 10 & Checklist: Rollback transaksi saat penghapusan akun gagal dan tidak ada data setengah jadi.
+     */
+    public function test_deletion_rolls_back_atomically_if_database_exception_occurs(): void
+    {
+        $targetUser = User::factory()->create(['email' => 'rollback@example.com']);
+        $project = Project::create([
+            'name' => 'Rollback Project',
+            'creator_id' => $targetUser->id,
+        ]);
+        $project->members()->attach($targetUser->id);
+
+        // Simulasi error database melalui event dispatcher model User
+        User::deleting(function ($user) use ($targetUser) {
+            if ($user->id === $targetUser->id) {
+                throw new \Exception('Simulasi kegagalan database saat transaksi hapus akun');
+            }
+        });
+
+        $response = $this->actingAs($this->adminUser)
+            ->delete(route('admin.users.destroy', $targetUser));
+
+        $response->assertRedirect(route('admin.users.index'));
+        $response->assertSessionHas('error');
+
+        // Pastikan seluruh data di-rollback (user, project, dan pivot tetap utuh)
+        $this->assertDatabaseHas('users', ['id' => $targetUser->id]);
+        $this->assertDatabaseHas('projects', ['id' => $project->id]);
+        $this->assertDatabaseHas('project_user', ['project_id' => $project->id, 'user_id' => $targetUser->id]);
     }
 }
