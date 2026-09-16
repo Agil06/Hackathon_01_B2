@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\TaskController;
-use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CollaboratorController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -34,10 +34,12 @@ Route::middleware('auth')->group(function () {
 
 // ============================================
 // TASK ROUTES - GALANG
-// FR-14 s/d FR-20
+// FR-10 s/d FR-13, FR-16 (mark-done & CRUD)
 // ============================================
 
 Route::middleware('auth')->prefix('projects/{project}')->group(function () {
+    Route::patch('tasks/{task}/done', [TaskController::class, 'markDone'])->name('tasks.done');
+    Route::patch('tasks/{task}/complete', [TaskController::class, 'markDone'])->name('tasks.complete');
     Route::resource('tasks', TaskController::class)->except(['index']);
 });
 
@@ -64,5 +66,6 @@ Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('projects.index');
     }
+
     return redirect()->route('login');
 })->name('home');
