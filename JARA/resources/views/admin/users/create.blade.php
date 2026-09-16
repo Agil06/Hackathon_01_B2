@@ -9,7 +9,7 @@
             &larr; Kembali ke Daftar Pengguna
         </a>
         <h1 style="font-size: 1.5rem; margin-bottom: 0.25rem;">Tambah Akun Pengguna</h1>
-        <p style="color: var(--text-secondary); font-size: 13px;">Buat akun pengguna baru dengan role 'admin' atau 'user' (FR-05, FC-03).</p>
+        <p style="color: var(--text-secondary); font-size: 13px;">Buat akun pengguna baru dengan role 'admin' atau 'user' (FR-03, UC-04).</p>
     </div>
 
     <div class="card">

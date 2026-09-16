@@ -1,6 +1,8 @@
 {{-- 
-    FR-01: Guest dapat membuka form registrasi
-    FC-01: Field name, email, password, password_confirmation
+    FR-01: Guest dapat mendaftarkan akun pengguna dengan nama, email, password, dan konfirmasi password
+    BR-01: Email wajib, berformat email, dan unik. Password min 8 karakter & dikonfirmasi
+    BR-02: Registrasi publik otomatis role 'user'
+    BR-10 & AC-01: Validasi server dan penolakan data invalid tanpa membuat akun baru
 --}}
 @extends('layouts.app')
 

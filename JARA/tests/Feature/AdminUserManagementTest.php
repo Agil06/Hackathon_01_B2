@@ -47,7 +47,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-04 & BR-04 & AC-05: Pengguna reguler (non-admin) ditolak dengan HTTP 403.
+     * FR-03 & BR-02 & BR-11 & AC-03: Pengguna reguler (non-admin) ditolak dengan HTTP 403 dari area admin.
      */
     public function test_regular_user_is_forbidden_from_admin_user_management(): void
     {
@@ -76,7 +76,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-04 & AC-05: Admin dapat melihat daftar akun pengguna.
+     * FR-03 & AC-03 & UC-04: Admin dapat melihat daftar seluruh akun pengguna dengan role dan detailnya.
      */
     public function test_admin_can_view_user_list(): void
     {
@@ -85,12 +85,20 @@ class AdminUserManagementTest extends TestCase
         $response->assertOk();
         $response->assertViewIs('admin.users.index');
         $response->assertViewHas('users');
+
+        $users = $response->viewData('users');
+        $this->assertCount(2, $users);
+        $this->assertEquals($this->adminUser->id, $users->first()->id);
+
+        $response->assertSeeText($this->adminUser->name);
         $response->assertSeeText($this->adminUser->email);
+        $response->assertSeeText($this->regularUser->name);
         $response->assertSeeText($this->regularUser->email);
+        $response->assertSeeText('(Anda)');
     }
 
     /**
-     * FR-05: Admin dapat membuka halaman formulir penambahan pengguna.
+     * FR-03 & UC-04: Admin dapat membuka halaman formulir penambahan pengguna.
      */
     public function test_admin_can_view_create_user_form(): void
     {
@@ -101,7 +109,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-05 & AC-06: Admin dapat membuat akun pengguna reguler baru.
+     * FR-03 & BR-01 & BR-02 & AC-03: Admin dapat membuat akun pengguna reguler baru dengan role 'user' dan password hash.
      */
     public function test_admin_can_create_regular_user(): void
     {
@@ -130,7 +138,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-05 & AC-06: Admin dapat membuat akun admin baru.
+     * FR-03 & BR-02 & AC-03: Admin dapat membuat akun pengguna baru dengan role 'admin'.
      */
     public function test_admin_can_create_admin_user(): void
     {
@@ -153,10 +161,12 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * BR-01 & AC-06: Pembuatan akun ditolak jika email sudah terdaftar (duplikat).
+     * BR-01 & BR-10 & AC-03: Pembuatan akun ditolak jika email sudah terdaftar (duplikat).
      */
     public function test_duplicate_email_is_rejected(): void
     {
+        $initialCount = User::count();
+
         $response = $this->actingAs($this->adminUser)
             ->post(route('admin.users.store'), [
                 'name' => 'Duplikat User',
@@ -167,10 +177,11 @@ class AdminUserManagementTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors('email');
+        $this->assertEquals($initialCount, User::count());
     }
 
     /**
-     * BR-02: Password minimal 8 karakter dan harus dikonfirmasi saat pembuatan akun.
+     * BR-01 & BR-10: Password minimal 8 karakter dan harus dikonfirmasi saat pembuatan akun.
      */
     public function test_password_must_be_minimum_eight_chars_and_confirmed(): void
     {
@@ -184,6 +195,7 @@ class AdminUserManagementTest extends TestCase
                 'role' => 'user',
             ]);
         $response->assertSessionHasErrors('password');
+        $this->assertDatabaseMissing('users', ['email' => 'short@example.com']);
 
         // Konfirmasi password tidak cocok
         $response = $this->actingAs($this->adminUser)
@@ -195,10 +207,11 @@ class AdminUserManagementTest extends TestCase
                 'role' => 'user',
             ]);
         $response->assertSessionHasErrors('password');
+        $this->assertDatabaseMissing('users', ['email' => 'mismatch@example.com']);
     }
 
     /**
-     * BR-03: Hanya role 'admin' dan 'user' yang diperbolehkan.
+     * BR-02 & BR-10: Hanya role 'admin' dan 'user' yang diperbolehkan.
      */
     public function test_role_must_be_admin_or_user(): void
     {
@@ -212,10 +225,33 @@ class AdminUserManagementTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors('role');
+        $this->assertDatabaseMissing('users', ['email' => 'invalidrole@example.com']);
     }
 
     /**
-     * FR-06 & AC-07: Admin dapat menghapus permanen akun lain.
+     * Section 10: Validasi gagal mempertahankan old input kecuali password.
+     */
+    public function test_create_user_validation_failure_preserves_old_input_except_passwords(): void
+    {
+        $response = $this->actingAs($this->adminUser)
+            ->post(route('admin.users.store'), [
+                'name' => 'Form Preserved',
+                'email' => 'formpreserved@example.com',
+                'role' => 'admin',
+                'password' => 'short',
+                'password_confirmation' => 'mismatch',
+            ]);
+
+        $response->assertSessionHasErrors(['password']);
+        $this->assertEquals('Form Preserved', session()->getOldInput('name'));
+        $this->assertEquals('formpreserved@example.com', session()->getOldInput('email'));
+        $this->assertEquals('admin', session()->getOldInput('role'));
+        $this->assertFalse(session()->hasOldInput('password'));
+        $this->assertFalse(session()->hasOldInput('password_confirmation'));
+    }
+
+    /**
+     * FR-03 & BR-14 & AC-03: Admin dapat menghapus permanen akun lain.
      */
     public function test_admin_can_delete_other_user(): void
     {
@@ -237,7 +273,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * BR-01 & AC-07: Email dari akun yang dihapus permanen dapat didaftarkan kembali.
+     * BR-01 & AC-03: Email dari akun yang dihapus permanen dapat didaftarkan kembali.
      */
     public function test_deleted_user_email_can_be_reused(): void
     {
@@ -267,7 +303,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * BR-05 & AC-07: Admin tidak dapat menghapus akunnya sendiri (self-delete ditolak).
+     * FR-03 & Section 5 & AC-03: Admin tidak dapat menghapus akunnya sendiri (self-delete ditolak).
      */
     public function test_admin_cannot_delete_own_account(): void
     {
@@ -285,7 +321,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * BR-17 & ERD: Menghapus user creator menghapus project miliknya, tasks, dan keanggotaan secara cascade.
+     * BR-14 & BR-15 & Section 5: Menghapus user creator menghapus project miliknya, tasks, dan keanggotaan secara cascade.
      */
     public function test_deleting_creator_cascades_projects_and_tasks(): void
     {
@@ -326,5 +362,36 @@ class AdminUserManagementTest extends TestCase
 
         // Collaborator akunnya sendiri tetap ada
         $this->assertDatabaseHas('users', ['id' => $collaborator->id]);
+    }
+
+    /**
+     * Section 5 & Section 10 & Checklist: Rollback transaksi saat penghapusan akun gagal dan tidak ada data setengah jadi.
+     */
+    public function test_deletion_rolls_back_atomically_if_database_exception_occurs(): void
+    {
+        $targetUser = User::factory()->create(['email' => 'rollback@example.com']);
+        $project = Project::create([
+            'name' => 'Rollback Project',
+            'creator_id' => $targetUser->id,
+        ]);
+        $project->members()->attach($targetUser->id);
+
+        // Simulasi error database melalui event dispatcher model User
+        User::deleting(function ($user) use ($targetUser) {
+            if ($user->id === $targetUser->id) {
+                throw new \Exception('Simulasi kegagalan database saat transaksi hapus akun');
+            }
+        });
+
+        $response = $this->actingAs($this->adminUser)
+            ->delete(route('admin.users.destroy', $targetUser));
+
+        $response->assertRedirect(route('admin.users.index'));
+        $response->assertSessionHas('error');
+
+        // Pastikan seluruh data di-rollback (user, project, dan pivot tetap utuh)
+        $this->assertDatabaseHas('users', ['id' => $targetUser->id]);
+        $this->assertDatabaseHas('projects', ['id' => $project->id]);
+        $this->assertDatabaseHas('project_user', ['project_id' => $project->id, 'user_id' => $targetUser->id]);
     }
 }

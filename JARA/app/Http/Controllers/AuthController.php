@@ -12,7 +12,8 @@ class AuthController extends Controller
 {
     /**
      * Show the registration form.
-     * FR-01: Guest dapat membuka form registrasi
+     * FR-01: Guest dapat mendaftarkan akun pengguna baru
+     * UC-01: Form pendaftaran akun publik
      */
     public function showRegisterForm()
     {
@@ -24,8 +25,11 @@ class AuthController extends Controller
 
     /**
      * Handle registration submission.
-     * FR-01: Guest dapat mengirim form registrasi
-     * BR-01: Email unik, BR-02: Password min 8 dan konfirmasi
+     * FR-01: Guest dapat mendaftarkan akun pengguna dengan nama, email, password, dan konfirmasi password.
+     * BR-01: Email wajib, berformat email, dan unik. Password minimal 8 karakter dan harus dikonfirmasi. Hash password.
+     * BR-02: Registrasi publik selalu membuat role 'user'.
+     * BR-10: Validasi server wajib, input invalid tidak mengubah database.
+     * AC-01: Akun tersimpan dengan role 'user' dan password hash; redirect ke login.
      */
     public function register(Request $request)
     {
@@ -39,17 +43,18 @@ class AuthController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => 'user', // BR-03: Registrasi publik selalu role 'user'
+            'role' => 'user', // BR-02: Registrasi publik selalu role 'user'
         ]);
 
-        // AC-01: Pengguna diarahkan ke login
+        // AC-01: Pengguna diarahkan ke login dengan pesan sukses
         return redirect()->route('login')
             ->with('success', 'Akun berhasil dibuat. Silakan login.');
     }
 
     /**
      * Show the login form.
-     * FR-02: Pengguna terdaftar dapat login
+     * FR-02: Pengguna terdaftar dapat login menggunakan sesi yang aman
+     * UC-01: Form login untuk guest
      */
     public function showLoginForm()
     {
@@ -61,8 +66,12 @@ class AuthController extends Controller
 
     /**
      * Handle login submission.
-     * FR-02: Login dengan email dan password yang valid
-     * BR: Session diregenerasi saat login
+     * FR-02: Pengguna terdaftar dapat login dengan email dan password.
+     * BR-01: Autentikasi berbasis email dan password hash.
+     * BR-10: Validasi server untuk format kredensial email & password.
+     * BR-13: Session diregenerasi setelah login berhasil untuk keamanan sesi.
+     * AC-02: Kredensial valid membuat sesi aktif dan menampilkan dashboard; kredensial salah ditolak tanpa membuat sesi.
+     * UC-01: Alur autentikasi dan pembuatan sesi pengguna.
      */
     public function login(Request $request)
     {
@@ -74,12 +83,12 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            // AC-03: User diarahkan ke daftar project
+            // AC-02: Pengguna diarahkan ke dashboard atau intended URL dengan sesi aktif
             return redirect()->intended(route('projects.index'))
                 ->with('success', 'Selamat datang, ' . Auth::user()->name . '!');
         }
 
-        // AC-03: Credential salah tetap di login dengan error
+        // AC-02 & Section 10: Kredensial salah ditolak, tampilkan pesan error dan pertahankan input email
         return back()->withErrors([
             'email' => 'Email atau password yang dimasukkan tidak sesuai.',
         ])->onlyInput('email');
@@ -87,8 +96,9 @@ class AuthController extends Controller
 
     /**
      * Handle logout.
-     * FR-03: Pengguna terautentikasi dapat logout
-     * BR: Session diregenerasi saat logout
+     * FR-02: Pengguna terdaftar dapat login dan logout menggunakan sesi yang aman.
+     * BR-13: Sesi diinvalidasi dan token CSRF diregenerasi saat logout untuk keamanan sesi.
+     * AC-02: Pengguna keluar dari status autentikasi dan diarahkan kembali ke halaman login.
      */
     public function logout(Request $request)
     {
@@ -97,7 +107,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        // AC-04: User diarahkan ke login
         return redirect()->route('login')
             ->with('success', 'Anda telah logout.');
     }

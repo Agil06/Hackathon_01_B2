@@ -6,7 +6,7 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
     <div>
         <h1 style="font-size: 1.5rem; margin-bottom: 0.25rem;">Manajemen Pengguna</h1>
-        <p style="color: var(--text-secondary); font-size: 13px;">Kelola akun pengguna dan hak akses sistem (FR-04, FR-05, FR-06).</p>
+        <p style="color: var(--text-secondary); font-size: 13px;">Kelola akun pengguna dan hak akses sistem (FR-03, UC-04).</p>
     </div>
     <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
