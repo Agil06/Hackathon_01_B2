@@ -1,210 +1,157 @@
-# Software Requirements Specification (SRS) — JARA
+# Software Requirements Specification JARA
 
-## 1. Ringkasan Sistem
+## 1. Tujuan dan Ruang Lingkup
 
-JARA adalah aplikasi web server-rendered berbasis Laravel dan MySQL untuk mengelola project dan task pribadi maupun kolaboratif. Pengguna terautentikasi hanya dapat mengakses project tempat ia menjadi anggota. Creator dan collaborator memiliki hak yang sama di dalam project. Admin Sistem mengelola akun pengguna. Seluruh penghapusan bersifat permanen dan seluruh schema harus dapat direproduksi melalui migration.
+JARA adalah aplikasi web advanced to-do list untuk mengelola tugas pribadi maupun tim. Pengguna membuat **Daftar Tugas** (disebut juga *project* pada nama model dan tabel aplikasi), lalu mengelola tugas di dalamnya. Daftar dapat dibagikan kepada pengguna lain. Satu tugas dapat ditugaskan kepada nol, satu, atau banyak anggota daftar.
 
-Baseline implementasi: Laravel MVC, Blade, session authentication, Eloquent, server-side validation, dan MySQL lokal. REST API, SPA, invitation workflow, soft delete, notification, dan role per-project tidak termasuk scope.
+Sistem mencakup autentikasi, administrasi akun, daftar tugas, keanggotaan, tugas, penugasan, validasi, otorisasi, dan integritas transaksi. Tidak mencakup notifikasi, komentar, lampiran, tag, invitation/approval, API publik, soft delete, atau audit log.
 
-## 2. Klasifikasi Requirement
+## 2. Aktor dan Hak Utama
 
-### 2.1 Confirmed requirement
-
-- Registrasi dan login pengguna reguler.
-- Admin dapat membuat dan menghapus akun.
-- Anggota project dapat CRUD project/task, menambah collaborator, mengubah priority/status/deadline, dan melihat progress.
-- Creator dan collaborator mempunyai permission project yang sama.
-- Data project dibatasi berdasarkan membership.
-- Penghapusan akun, project, dan task bersifat permanen.
-- Database direproduksi dengan migration; seed/factory hanya bila diperlukan.
-
-### 2.2 Technical necessity yang dikunci
-
-- Password disimpan sebagai hash dan session diregenerasi saat login/logout.
-- CSRF protection digunakan pada semua form mutasi.
-- Creator juga dicatat sebagai anggota pada pivot `project_user`; `creator_id` tetap menyimpan asal creator.
-- Progress project dihitung dari task saat dibaca dan tidak disimpan sebagai kolom.
-- Authorization dipusatkan pada `ProjectPolicy`; akses task diperiksa melalui project induknya.
-- Nilai enum disimpan sebagai snake_case: priority `low|medium|high`, status `not_done|in_progress|done`; UI menampilkan label sesuai user story.
-
-### 2.3 Implementation assumptions
-
-- Identitas login dan target collaborator adalah `email`; `name` adalah nama tampilan. Tidak dibuat field `username` terpisah.
-- Akun hanya mempunyai role global `admin` atau `user`. Admin tidak otomatis mendapat akses ke semua project.
-- Saat creator dihapus, project miliknya beserta task dan membership ikut dihapus (`ON DELETE CASCADE`). Membership user tersebut pada project lain ikut dihapus.
-- Admin awal dibuat oleh `AdminUserSeeder` menggunakan nilai development yang didokumentasikan; credential harus diganti untuk penggunaan di luar praktikum.
-- Deadline memakai tanggal (`date`), bukan waktu, dan boleh kosong.
-- Nama project dan judul task maksimal 255 karakter; deskripsi project/task tidak ditambahkan karena tidak disebutkan.
-
-### 2.4 Blocking clarification untuk PM sebelum coding
-
-`BC-01`: Konfirmasi apakah penghapusan creator memang harus menghapus seluruh project yang dibuatnya. Rancangan awal mengunci perilaku cascade agar tidak ada project tanpa creator. Jika jawaban berbeda, schema, policy, dan acceptance test harus direvisi sebelum branch dibuat.
-
-`BC-02`: Konfirmasi apakah “username atau identitas akun” berarti perlu username terpisah. Rancangan awal memakai email unik sebagai identitas login; menambah username akan mengubah form, schema, dan test.
-
-## 3. Actors
-
-- **Pengguna Umum (Guest):** hanya membuka halaman register/login dan mengirim form authentication.
-- **Pengguna Reguler:** memakai fitur project/task pada project tempat ia menjadi anggota.
-- **Admin Sistem:** membuat dan menghapus akun melalui area admin; bukan anggota otomatis dari project pengguna.
-
-## 4. Functional Requirements
-
-| ID | Requirement atomik |
+| Aktor | Hak |
 |---|---|
-| FR-01 | Guest dapat membuka dan mengirim form registrasi akun reguler. |
-| FR-02 | Pengguna terdaftar dapat login dengan email dan password yang valid. |
-| FR-03 | Pengguna terautentikasi dapat logout. |
-| FR-04 | Admin dapat melihat daftar akun pengguna. |
-| FR-05 | Admin dapat membuat akun `admin` atau `user`. |
-| FR-06 | Admin dapat menghapus permanen akun selain akunnya sendiri. |
-| FR-07 | Pengguna reguler dapat melihat daftar project tempat ia menjadi anggota. |
-| FR-08 | Pengguna reguler dapat membuat project dan otomatis menjadi anggotanya. |
-| FR-09 | Anggota project dapat melihat detail project beserta task, collaborator, dan progress. |
-| FR-10 | Anggota project dapat mengubah nama project. |
-| FR-11 | Anggota project dapat menghapus permanen project. |
-| FR-12 | Anggota project dapat menambahkan akun terdaftar sebagai collaborator berdasarkan email. |
-| FR-13 | Sistem menolak akses melihat atau memanipulasi project bagi non-anggota. |
-| FR-14 | Anggota project dapat membuat task di dalam project. |
-| FR-15 | Anggota project dapat melihat detail task di project. |
-| FR-16 | Anggota project dapat mengubah title, priority, deadline, dan status task. |
-| FR-17 | Anggota project dapat menghapus permanen task. |
-| FR-18 | Task baru memiliki status default `Not Done`. |
-| FR-19 | Priority task dibatasi pada `Low`, `Medium`, atau `High`. |
-| FR-20 | Status task dibatasi pada `Not Done`, `In Progress`, atau `Done`, dan boleh berpindah antarnilai tanpa approval. |
-| FR-21 | Sistem menampilkan progress `Not Started` untuk project tanpa task atau seluruh task `Not Done`. |
-| FR-22 | Sistem menampilkan progress `In Progress` bila sedikitnya satu task `In Progress`/`Done` dan belum seluruh task `Done`. |
-| FR-23 | Sistem menampilkan progress `Completed` bila project memiliki task dan seluruh task `Done`. |
-| FR-24 | Penghapusan project menghapus permanen seluruh task dan membership project. |
-| FR-25 | Schema aplikasi dapat dibuat ulang pada MySQL dengan Laravel migration. |
+| Guest | Registrasi dan login. |
+| Pengguna | Membuat daftar; melihat daftar yang dimilikinya atau dibagikan kepadanya; mengelola tugas sesuai hak daftar. |
+| Pemilik daftar | Pembuat daftar. Mengubah atau menghapus daftar miliknya serta menambah atau menghapus anggota. |
+| Anggota daftar | Mengakses daftar yang dibagikan kepadanya dan membuat, melihat, mengubah, menandai selesai, atau menghapus tugas di daftar tersebut. Tidak dapat mengubah daftar/keanggotaan. |
+| Admin | Menambah, melihat, dan menghapus akun pengguna. Admin tidak otomatis menjadi anggota semua daftar. |
 
-## 5. Business Rules
+## 3. Requirement Fungsional
+
+| ID | Requirement |
+|---|---|
+| FR-01 | Guest dapat mendaftarkan akun pengguna dengan nama, email, password, dan konfirmasi password. |
+| FR-02 | Pengguna terdaftar dapat login dan logout menggunakan sesi yang aman. |
+| FR-03 | Admin dapat melihat daftar akun, menambah akun, dan menghapus akun lain; admin tidak boleh menghapus akunnya sendiri. |
+| FR-04 | Pengguna dapat membuat daftar tugas baru dan otomatis menjadi pemilik serta anggota daftar tersebut. |
+| FR-05 | Pengguna dapat melihat hanya daftar yang ia miliki atau yang memiliki membership untuknya. |
+| FR-06 | Pemilik dapat mengubah nama daftar miliknya. |
+| FR-07 | Pemilik dapat menghapus daftar miliknya; seluruh tugas, penugasan tugas, dan membership daftar ikut terhapus permanen. |
+| FR-08 | Pemilik dapat menambahkan pengguna terdaftar ke daftar berdasarkan email dan dapat menghapus anggota selain dirinya sendiri. |
+| FR-09 | Sistem menolak setiap akses daftar, tugas, atau penugasan oleh pengguna yang bukan anggota daftar. |
+| FR-10 | Anggota daftar dapat membuat tugas dengan judul, prioritas, dan tenggat waktu opsional. Tugas baru berstatus `not_done`. |
+| FR-11 | Anggota daftar dapat melihat detail dan daftar tugas di daftar yang diaksesnya. |
+| FR-12 | Anggota daftar dapat mengubah judul, prioritas, tenggat waktu, dan status tugas. Status yang tersedia adalah `not_done`, `in_progress`, dan `done`; aksi menandai selesai mengubah status menjadi `done`. |
+| FR-13 | Anggota daftar dapat menghapus tugas. |
+| FR-14 | Anggota daftar dapat menetapkan satu tugas kepada nol, satu, atau lebih anggota dari daftar yang sama; penugasan dapat ditambah dan dihapus. |
+| FR-15 | Sistem menampilkan assignee setiap tugas dan daftar tugas yang ditugaskan kepada pengguna yang sedang login. |
+| FR-16 | Sistem menghitung progres daftar saat dibaca: `Not Started` jika tidak ada tugas atau semua `not_done`; `In Progress` jika ada tugas mulai/done tetapi belum semuanya done; `Completed` jika ada tugas dan semuanya done. |
+| FR-17 | Seluruh skema database dapat dibangun ulang melalui migration dan tidak membutuhkan perubahan tabel manual. |
+
+## 4. Aturan Bisnis dan Validasi
 
 | ID | Aturan |
 |---|---|
-| BR-01 | Email wajib, format valid, dan unik di `users`; setelah row dihapus permanen, email dapat dipakai lagi. |
-| BR-02 | Password minimal 8 karakter dan harus dikonfirmasi saat registrasi/pembuatan akun. |
-| BR-03 | Hanya role global `admin` dan `user` yang valid. Registrasi publik selalu menghasilkan role `user`. |
-| BR-04 | Hanya admin boleh membuka dan menjalankan operasi `/admin/users`. |
-| BR-05 | Admin tidak boleh menghapus akun yang sedang dipakainya sendiri. |
-| BR-06 | Nama project dan title task wajib, string, maksimum 255 karakter. |
-| BR-07 | Setiap project mempunyai tepat satu `creator_id`; creator juga mempunyai satu row membership. |
-| BR-08 | Membership `(project_id,user_id)` unik; menambah anggota yang sudah ada ditolak tanpa membuat duplikasi. |
-| BR-09 | Target collaborator harus ditemukan berdasarkan email akun terdaftar. Tidak ada invitation/approval. |
-| BR-10 | Semua aksi project/task/add-collaborator membutuhkan authentication dan membership project. |
-| BR-11 | Setiap task wajib terkait tepat satu project. |
-| BR-12 | Priority wajib salah satu `low`, `medium`, `high`. |
-| BR-13 | Deadline opsional dan, bila diisi, harus berupa tanggal valid. Tidak ada larangan tanggal lampau karena tidak dinyatakan. |
-| BR-14 | Status wajib salah satu `not_done`, `in_progress`, `done`; semua perpindahan antarnilai diizinkan. |
-| BR-15 | Task baru selalu `not_done`; form create tidak menerima status. |
-| BR-16 | Progress tidak disimpan: 0 task atau semua `not_done` = `Not Started`; semua `done` dan jumlah task > 0 = `Completed`; selain itu = `In Progress`. |
-| BR-17 | Delete memakai hard delete. FK cascade membersihkan data turunan sesuai ERD. |
+| BR-01 | Email wajib, berformat email, dan unik. Password minimal 8 karakter dan harus dikonfirmasi. Password disimpan sebagai hash. |
+| BR-02 | Role akun hanya `admin` atau `user`. Registrasi publik selalu membuat role `user`. |
+| BR-03 | Nama daftar dan judul tugas wajib berupa string maksimal 255 karakter. |
+| BR-04 | Prioritas hanya `low`, `medium`, atau `high`; default `medium`. Deadline opsional dan, bila diisi, harus tanggal valid. |
+| BR-05 | Status tugas hanya `not_done`, `in_progress`, atau `done`; semua perpindahan status diizinkan. |
+| BR-06 | Satu daftar mempunyai tepat satu owner (`owner_id`). Owner harus juga memiliki satu membership pada daftar. |
+| BR-07 | Pasangan membership `(list_id, user_id)` unik. Pengguna yang sudah menjadi anggota tidak dapat ditambahkan lagi. |
+| BR-08 | Hanya owner yang boleh mengubah/menghapus daftar dan menambah/menghapus anggota. Owner tidak dapat dihapus dari membership. |
+| BR-09 | Tugas wajib berada dalam tepat satu daftar. Assignee wajib merupakan anggota daftar dari tugas tersebut. Pasangan `(task_id, user_id)` unik. |
+| BR-10 | Semua request mutasi wajib melalui validasi server. Input invalid tidak boleh mengubah database. |
+| BR-11 | Semua request daftar/tugas/assignment memerlukan autentikasi; pengguna yang login tetapi tidak berwenang menerima HTTP 403. Resource tidak ada menerima HTTP 404. |
+| BR-12 | Semua query database harus memakai Eloquent/query builder Laravel atau prepared statement berparameter; SQL yang menggabungkan input pengguna secara string dilarang. |
+| BR-13 | CSRF protection digunakan untuk seluruh form mutasi; session diregenerasi setelah login dan diinvalidate saat logout. |
+| BR-14 | Penghapusan adalah hard delete. Foreign key cascade wajib menghapus data turunan yang relevan. |
+| BR-15 | Saat admin menghapus akun, membership dan assignment akun tersebut ikut dihapus. Jika akun adalah owner daftar, daftar miliknya beserta seluruh data turunannya ikut terhapus agar tidak ada daftar tanpa owner. |
 
-## 6. Acceptance Criteria
+## 5. Kebutuhan Atomisitas
 
-| ID | Given / When / Then |
+Setiap proses berikut dijalankan dalam database transaction. Bila satu langkah gagal, seluruh perubahan dibatalkan dan tidak ada data setengah jadi.
+
+| Proses | Unit atomik |
 |---|---|
-| AC-01 | Given guest berada di register, when data valid dikirim, then akun role `user` tersimpan dan pengguna diarahkan ke login. |
-| AC-02 | Given email sudah terdaftar atau konfirmasi password berbeda, when registrasi dikirim, then form ditolak, pesan validasi tampil, dan tidak ada akun baru. |
-| AC-03 | Given credential valid, when login, then session terautentikasi dan user diarahkan ke daftar project; credential salah tetap di login dengan error. |
-| AC-04 | Given user login, when logout, then session authentication berakhir dan user diarahkan ke login. |
-| AC-05 | Given admin login, when membuka user list, then semua akun tampil; regular user mendapat 403. |
-| AC-06 | Given admin mengirim create-user valid, then akun dengan role pilihan tersimpan; email duplikat ditolak. |
-| AC-07 | Given admin menghapus akun lain, then row akun hilang permanen dan email dapat didaftarkan lagi; self-delete ditolak. |
-| AC-08 | Given regular user membuat project bernama valid, then project tersimpan dengan `creator_id` dirinya dan membership creator tercipta. |
-| AC-09 | Given user adalah member, when membuka dashboard/detail, then project, tasks, members, dan progress yang benar tampil. |
-| AC-10 | Given user bukan member, when mencoba URL show/edit/update/delete project atau task, then response 403 dan data tidak berubah. |
-| AC-11 | Given member memperbarui nama project valid, then nama tersimpan dan detail project tampil; nama kosong ditolak. |
-| AC-12 | Given member menghapus project, then project, seluruh task, dan seluruh pivot membership terkait tidak lagi ada. |
-| AC-13 | Given member memasukkan email akun terdaftar yang belum menjadi member, then membership langsung tersimpan; email tidak ditemukan atau duplicate menampilkan error. |
-| AC-14 | Given member mengirim task valid, then task terkait project tersimpan dengan status `not_done`. |
-| AC-15 | Given member mengubah seluruh field task dengan nilai valid, then perubahan persisted dan detail project tampil. |
-| AC-16 | Given priority/status di luar daftar atau deadline bukan tanggal, when form dikirim, then request ditolak dan database tidak berubah. |
-| AC-17 | Given member menghapus task, then row task hilang permanen. |
-| AC-18 | Given project tanpa task atau seluruh task `not_done`, then progress adalah `Not Started`. |
-| AC-19 | Given sebagian pekerjaan telah dimulai/selesai tetapi tidak semua task `done`, then progress adalah `In Progress`. |
-| AC-20 | Given project memiliki task dan semuanya `done`, then progress adalah `Completed`; mengubah satu task kembali mengubah progress sesuai aturan. |
-| AC-21 | Given database kosong dan `.env` MySQL valid, when `php artisan migrate --seed`, then seluruh tabel dan data admin development dibuat tanpa langkah schema manual. |
+| Membuat daftar | Buat `lists` lalu buat membership owner. |
+| Menambah anggota | Verifikasi owner, cari akun, cek duplicate, lalu buat membership. |
+| Menghapus anggota | Verifikasi owner, pastikan target bukan owner, hapus seluruh assignment target pada task dalam daftar, lalu hapus membership. |
+| Membuat/mengubah tugas beserta assignee | Validasi tugas, verifikasi semua assignee adalah member, simpan task, lalu sinkronkan semua assignment. |
+| Menghapus daftar | Hapus daftar; FK cascade membersihkan tasks, task assignments, dan memberships. |
+| Menghapus akun | Verifikasi admin dan bukan self-delete; hapus akun beserta relasi sesuai FK, termasuk daftar miliknya bila akun adalah owner. |
 
-## 7. Textual Use Cases
+Implementasi proses tersebut menggunakan `DB::transaction(...)`. Constraint FK dan unique index tetap diperlukan sebagai perlindungan terakhir terhadap race condition atau bypass aplikasi.
 
-### UC-01 — Authentication
+## 6. Model Data Minimum
 
-- **Actor:** Guest / pengguna terdaftar.
-- **Precondition:** Guest belum login.
-- **Trigger:** membuka register atau login.
-- **Main flow:** guest registrasi → data divalidasi → akun `user` dibuat → login dengan credential → session dibuat → diarahkan ke project list.
-- **Alternative/error:** email duplicate, password confirmation salah, atau credential salah menampilkan error dan tidak membuat session/data tak valid.
-- **Postcondition:** user terautentikasi atau tetap guest.
-
-### UC-02 — Membuat dan berkolaborasi dalam project
-
-- **Actor:** Pengguna reguler terautentikasi.
-- **Precondition:** akun aktif.
-- **Trigger:** user membuat project lalu menambah collaborator.
-- **Main flow:** isi nama project → project dan membership creator tersimpan → buka detail → isi email collaborator → akun ditemukan → membership langsung tersimpan.
-- **Alternative/error:** nama invalid, email tidak ditemukan, atau sudah menjadi member menghasilkan validation error.
-- **Postcondition:** semua member dapat melakukan operasi project/task yang sama.
-
-### UC-03 — Mengelola task dan progress
-
-- **Actor:** Anggota project.
-- **Precondition:** project ada dan actor merupakan member.
-- **Trigger:** actor membuat/mengubah/menghapus task.
-- **Main flow:** submit task → validasi → simpan → redirect ke detail project → progress dihitung ulang dari status semua task.
-- **Alternative/error:** input invalid ditolak; non-member memperoleh 403; resource tidak ada memperoleh 404.
-- **Postcondition:** task persisted sesuai aksi dan progress terbaru tampil.
-
-### UC-04 — Administrasi akun
-
-- **Actor:** Admin Sistem.
-- **Precondition:** login dengan role `admin`.
-- **Trigger:** membuka area user management.
-- **Main flow:** melihat daftar → membuat akun atau memilih delete akun lain → perubahan persisted.
-- **Alternative/error:** non-admin 403; duplicate email ditolak; self-delete ditolak.
-- **Postcondition:** daftar akun konsisten; hard delete memungkinkan reuse email.
-
-## 8. Data Requirements
-
-- **User:** name, email unik, password hash, global role, timestamps.
-- **Project:** nama, creator reference, timestamps.
-- **Project membership:** pasangan project-user unik dan timestamps; tidak menyimpan role/invitation state.
-- **Task:** project reference, title, priority kategorikal, deadline opsional, completion status, timestamps.
-- Relationship: User 1—N created Project; User M—N Project melalui membership; Project 1—N Task.
-- Progress adalah derived data dan tidak disimpan.
-
-## 9. Validation and Error Behaviour
-
-- Validation gagal: redirect kembali, old input dipertahankan, pesan field-level ditampilkan, database tidak berubah.
-- Authentication gagal: login tetap tampil dengan pesan credential tidak valid tanpa membocorkan apakah email ada.
-- Guest ke halaman terlindungi: redirect ke login.
-- Authenticated tetapi tidak berhak: HTTP 403.
-- Model/path ID tidak ditemukan: HTTP 404 melalui route-model binding.
-- Duplicate email/membership: validation error yang mudah dipahami; unique constraint tetap menjadi perlindungan terakhir.
-- Delete self oleh admin: redirect kembali dengan error; tidak ada perubahan.
-- Operasi multi-row create project + creator membership menggunakan transaction agar tidak menghasilkan data setengah jadi.
-
-## 10. Learning Scope Mapping
-
-| Konsep | Requirement | Realisasi |
+| Entitas | Field penting | Relasi |
 |---|---|---|
-| Routing & HTTP | FR-01–FR-24 | Named web routes, GET/POST/PATCH/DELETE. |
-| Controller processing | FR-01–FR-24 | Authentication, admin, project, collaborator, dan task controllers. |
-| Form submission & validation | FR-01, FR-02, FR-05, FR-08, FR-10, FR-12, FR-14, FR-16 | Laravel server-side validation dan error bag. |
-| Session | FR-02, FR-03 | `Auth::attempt`, regenerate, logout, invalidate. |
-| Database/Eloquent | FR-04–FR-25 | Models, relations, migration, transaction, cascade. |
-| Blade rendering | FR-01–FR-23 | Forms, lists, detail, status/progress, error/empty state. |
-| Authorization | FR-04–FR-06, FR-13 | Role middleware dan `ProjectPolicy`. |
+| `users` | id, name, email unik, password hash, role | memiliki daftar, membership, dan assignment. |
+| `lists` | id, owner_id, name | satu owner, banyak membership, banyak task. Nama tabel boleh tetap `projects` bila baseline kode memakai istilah tersebut. |
+| `list_user` | list_id, user_id | membership M:N yang unik. |
+| `tasks` | id, list_id, title, priority, deadline nullable, status | milik satu daftar dan memiliki banyak assignee. |
+| `task_user` | task_id, user_id | assignment M:N yang unik; user harus anggota daftar induk. |
 
-## 11. Assumptions and Open Questions
+Foreign key minimum: `lists.owner_id -> users`, `list_user.list_id -> lists`, `list_user.user_id -> users`, `tasks.list_id -> lists`, serta `task_user.task_id -> tasks` dan `task_user.user_id -> users`. Hapus daftar meng-cascade tasks, memberships, dan assignments; hapus task meng-cascade assignments.
 
-- **Confirmed:** nilai status/priority, equality creator/collaborator, no invitation, hard delete, membership-only access, MySQL/migrations.
-- **Technical necessity:** password hash, CSRF, policy, creator membership pivot, computed progress.
-- **Assumption:** email sebagai login/collaborator identity; admin tidak otomatis boleh melihat project; deadline date-only; cascade project saat creator dihapus.
-- **Open/blocking:** BC-01 dan BC-02 harus diputuskan PM. Seluruh dokumen memakai provisional decision di atas agar implementasi tetap dapat dimulai setelah PM menyetujuinya.
+## 7. Matriks Otorisasi
 
-## 12. Implementation Risk
+| Aksi | Guest | Non-member | Anggota | Owner | Admin non-member |
+|---|---:|---:|---:|---:|---:|
+| Membuat daftar | Tidak | Ya | Ya | Ya | Ya |
+| Melihat daftar/tugas | Tidak | Tidak | Ya | Ya | Tidak |
+| Membuat, ubah, hapus tugas | Tidak | Tidak | Ya | Ya | Tidak |
+| Mengatur assignee | Tidak | Tidak | Ya | Ya | Tidak |
+| Ubah/hapus daftar | Tidak | Tidak | Tidak | Ya | Tidak |
+| Tambah/hapus anggota | Tidak | Tidak | Tidak | Ya | Tidak |
+| Kelola akun | Tidak | Tidak | Tidak | Tidak | Ya |
 
-- Scope authentication + admin + project + collaboration + task cukup padat untuk 2 jam. Mitigasi: gunakan Blade sederhana, tanpa CSS framework wajib, tanpa API, tanpa service/repository, dan ikuti branch/contract di `design.md`.
-- Cascade account deletion berdampak luas. PM wajib mengunci BC-01 sebelum migration foundation dibuat.
-- Shared route/layout/model rawan conflict. Satu owner foundation membuat skeleton; branch lain mengisi file feature-specific dan perubahan shared diajukan melalui PM.
+## 8. Acceptance Criteria
+
+| ID | Given When Then |
+|---|---|
+| AC-01 | Given guest, when registrasi valid, then akun `user` tersimpan dengan password hash; email duplikat atau input invalid ditolak tanpa akun baru. |
+| AC-02 | Given credential valid, when login, then sesi aktif dan dashboard daftar tampil; credential salah tidak membuat sesi. |
+| AC-03 | Given admin, when mengelola akun valid, then akun dibuat/dihapus; non-admin dan self-delete ditolak. |
+| AC-04 | Given user membuat daftar valid, then owner dan membership owner tercipta bersama-sama. Jika pembuatan membership gagal, daftar juga tidak tersimpan. |
+| AC-05 | Given member membuka dashboard, then hanya daftar miliknya atau daftar bersama yang tampil. |
+| AC-06 | Given owner menambah user terdaftar, then membership baru tersimpan; email tidak ditemukan/duplicate dan request non-owner tidak mengubah data. |
+| AC-07 | Given owner menghapus daftar, then daftar, seluruh tasks, task assignments, dan memberships tidak lagi ada. |
+| AC-08 | Given member membuat/mengubah task valid, then perubahan tersimpan; nilai priority/status/deadline invalid ditolak tanpa perubahan. |
+| AC-09 | Given member menetapkan beberapa anggota daftar pada task, then setiap assignment tersimpan dan terlihat; assignee non-member ditolak serta tidak ada assignment parsial. |
+| AC-10 | Given non-member mencoba URL daftar, tugas, atau assignment, then response 403 dan database tidak berubah. |
+| AC-11 | Given task ditandai selesai, then statusnya `done` dan progres daftar diperbarui saat halaman dibaca. |
+| AC-12 | Given database kosong, when migration dan seed dijalankan, then seluruh tabel, FK, unique constraint, dan admin development dibuat tanpa schema manual. |
+
+## 9. Use Case Utama
+
+### UC-01 Registrasi dan Login
+
+Guest mengisi form registrasi. Sistem memvalidasi input, membuat akun dengan role `user`, lalu pengguna login menggunakan email dan password. Login yang valid membuat sesi baru dan menampilkan dashboard. Email duplikat, konfirmasi password salah, atau kredensial salah hanya menampilkan error dan tidak membuat data/sesi yang tidak valid.
+
+### UC-02 Membuat dan Membagikan Daftar
+
+Pengguna login membuat daftar. Sistem dalam satu transaction menyimpan daftar dan membership owner. Owner membuka detail daftar lalu menambah pengguna terdaftar berdasarkan email. Member baru langsung dapat membuka daftar dan mengelola tugas, tetapi tidak dapat mengubah daftar atau membership. Hanya owner dapat menghapus member; assignment member itu pada daftar yang sama harus ikut dibersihkan dalam transaction.
+
+### UC-03 Mengelola Tugas dan Assignee
+
+Anggota daftar membuat atau mengubah tugas. Sistem memvalidasi field task serta seluruh ID assignee, memastikan semua assignee anggota daftar, kemudian menyimpan task dan sinkronisasi assignment sebagai satu unit atomik. Jika satu assignee tidak valid, task dan semua assignment tetap seperti sebelum request. Anggota dapat mengubah status hingga `done` atau menghapus task.
+
+### UC-04 Administrasi Akun
+
+Admin login membuka area akun untuk membuat atau menghapus akun lain. Sistem menolak user biasa dan self-delete. Menghapus akun owner menghapus daftar miliknya melalui cascade agar tidak ada daftar tanpa owner; membership dan assignment akun pada daftar lain ikut hilang.
+
+## 10. Perilaku Error
+
+- Validasi gagal: kembali ke form, tampilkan error per-field dan pertahankan old input selain password; database tidak berubah.
+- Guest ke resource terlindungi: redirect ke login. Pengguna login yang tidak memenuhi policy: HTTP 403. ID resource yang tidak ada atau task yang bukan milik daftar URL: HTTP 404.
+- Duplicate email, membership, dan assignment: tampilkan pesan yang dapat dipahami; unique constraint tetap melindungi database.
+- Kesalahan database pada proses atomik: transaction rollback, tampilkan error umum yang aman, dan log detail teknis di server tanpa menampilkan query/input sensitif kepada pengguna.
+
+## 11. Nonfunctional dan Keamanan
+
+- Aplikasi menggunakan Laravel MVC, Blade, MySQL, Eloquent, validation server-side, policy/middleware, dan migration.
+- Semua operasi tulis memakai POST/PUT/PATCH/DELETE dengan CSRF token, bukan GET.
+- Otorisasi dipusatkan pada `ListPolicy`/`ProjectPolicy` dan diperiksa lagi pada route/controller untuk task serta assignee.
+- Pesan validasi dapat dipahami pengguna dan old input dipertahankan kecuali password.
+- Tidak ada SQL mentah dengan interpolasi input pengguna. Bila SQL mentah diperlukan, gunakan binding parameter.
+- Pengujian minimal mencakup otorisasi, validasi, transaksi rollback, FK/unique constraint, dan assignment multi-user.
+
+## 12. Asumsi yang Dikunci
+
+- Email menjadi identitas login serta pencarian anggota.
+- Anggota dapat mengelola tugas dan assignee, sedangkan hanya owner mengelola daftar/anggota.
+- Tugas boleh belum mempunyai assignee agar mendukung tugas pribadi atau backlog.
+- Admin boleh membuat daftar untuk dirinya sendiri, tetapi tidak memperoleh bypass pada daftar milik pengguna lain.
+- Deadline disimpan sebagai tanggal tanpa jam; tanggal lampau tetap valid karena user story tidak melarangnya.

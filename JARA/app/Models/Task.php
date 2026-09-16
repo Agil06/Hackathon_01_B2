@@ -34,8 +34,12 @@ class Task extends Model
         return $this->belongsTo(Project::class);
     }
 
+    /**
+     * Members assigned to this task.
+     */
     public function assignees(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'task_user')->withTimestamps();
+        return $this->belongsToMany(User::class, 'task_user')
+            ->withTimestamps();
     }
 }

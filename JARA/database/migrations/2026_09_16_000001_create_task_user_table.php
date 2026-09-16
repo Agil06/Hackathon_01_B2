@@ -8,12 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('task_user', function (Blueprint $table): void {
+        Schema::create('task_user', function (Blueprint $table) {
             $table->foreignId('task_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
 
-            $table->primary(['task_id', 'user_id']);
+            $table->unique(['task_id', 'user_id']);
         });
     }
 
