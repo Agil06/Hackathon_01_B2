@@ -4,14 +4,14 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
-test('guest can view registration form (FR-01)', function () {
+test('guest can view registration form (FR-01, UC-01)', function () {
     $response = $this->get(route('register'));
 
     $response->assertOk();
     $response->assertSee('Buat Akun');
 });
 
-test('guest can register as regular user with role user (FR-01, BR-03, AC-01)', function () {
+test('guest can register as regular user with role user and hashed password (FR-01, BR-01, BR-02, AC-01)', function () {
     $response = $this->post(route('register'), [
         'name' => 'John Doe',
         'email' => 'johndoe@example.com',
@@ -25,17 +25,18 @@ test('guest can register as regular user with role user (FR-01, BR-03, AC-01)', 
     $this->assertDatabaseHas('users', [
         'name' => 'John Doe',
         'email' => 'johndoe@example.com',
-        'role' => 'user', // BR-03: Registrasi publik selalu role user
+        'role' => 'user', // BR-02: Registrasi publik selalu role user
     ]);
 
     $user = User::where('email', 'johndoe@example.com')->first();
     expect(Hash::check('password123', $user->password))->toBeTrue();
 });
 
-test('registration validation enforces required name, unique email, and confirmed min 8 password (BR-01, BR-02, AC-02)', function () {
+test('registration validation enforces required fields, valid email, uniqueness, and confirmed min 8 password without persisting invalid data (FR-01, BR-01, BR-10, AC-01)', function () {
     User::factory()->create(['email' => 'existing@example.com']);
+    $initialCount = User::count();
 
-    // Empty fields
+    // Field kosong
     $this->post(route('register'), [
         'name' => '',
         'email' => '',
@@ -43,7 +44,15 @@ test('registration validation enforces required name, unique email, and confirme
         'password_confirmation' => '',
     ])->assertSessionHasErrors(['name', 'email', 'password']);
 
-    // Duplicate email
+    // Format email tidak valid
+    $this->post(route('register'), [
+        'name' => 'Invalid Email User',
+        'email' => 'not-an-email',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+    ])->assertSessionHasErrors(['email']);
+
+    // Email duplikat
     $this->post(route('register'), [
         'name' => 'Duplicate User',
         'email' => 'existing@example.com',
@@ -59,13 +68,33 @@ test('registration validation enforces required name, unique email, and confirme
         'password_confirmation' => 'pass12',
     ])->assertSessionHasErrors(['password']);
 
-    // Password confirmation tidak cocok
+    // Konfirmasi password tidak cocok
     $this->post(route('register'), [
         'name' => 'Mismatch Pass User',
         'email' => 'mismatch@example.com',
         'password' => 'password123',
         'password_confirmation' => 'different456',
     ])->assertSessionHasErrors(['password']);
+
+    // BR-10 & AC-01: Tidak ada penambahan user pada database saat input invalid
+    expect(User::count())->toBe($initialCount);
+    $this->assertDatabaseMissing('users', ['email' => 'mismatch@example.com']);
+    $this->assertDatabaseMissing('users', ['email' => 'short@example.com']);
+});
+
+test('registration failure preserves old input for name and email but excludes password fields (Section 10)', function () {
+    $response = $this->post(route('register'), [
+        'name' => 'Preserved Name',
+        'email' => 'preserved@example.com',
+        'password' => 'short',
+        'password_confirmation' => 'short',
+    ]);
+
+    $response->assertSessionHasErrors(['password']);
+    expect(session()->getOldInput('name'))->toBe('Preserved Name')
+        ->and(session()->getOldInput('email'))->toBe('preserved@example.com')
+        ->and(session()->hasOldInput('password'))->toBeFalse()
+        ->and(session()->hasOldInput('password_confirmation'))->toBeFalse();
 });
 
 test('guest can view login form (FR-02)', function () {

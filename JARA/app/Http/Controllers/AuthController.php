@@ -12,7 +12,8 @@ class AuthController extends Controller
 {
     /**
      * Show the registration form.
-     * FR-01: Guest dapat membuka form registrasi
+     * FR-01: Guest dapat mendaftarkan akun pengguna baru
+     * UC-01: Form pendaftaran akun publik
      */
     public function showRegisterForm()
     {
@@ -24,8 +25,11 @@ class AuthController extends Controller
 
     /**
      * Handle registration submission.
-     * FR-01: Guest dapat mengirim form registrasi
-     * BR-01: Email unik, BR-02: Password min 8 dan konfirmasi
+     * FR-01: Guest dapat mendaftarkan akun pengguna dengan nama, email, password, dan konfirmasi password.
+     * BR-01: Email wajib, berformat email, dan unik. Password minimal 8 karakter dan harus dikonfirmasi. Hash password.
+     * BR-02: Registrasi publik selalu membuat role 'user'.
+     * BR-10: Validasi server wajib, input invalid tidak mengubah database.
+     * AC-01: Akun tersimpan dengan role 'user' dan password hash; redirect ke login.
      */
     public function register(Request $request)
     {
@@ -39,10 +43,10 @@ class AuthController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => 'user', // BR-03: Registrasi publik selalu role 'user'
+            'role' => 'user', // BR-02: Registrasi publik selalu role 'user'
         ]);
 
-        // AC-01: Pengguna diarahkan ke login
+        // AC-01: Pengguna diarahkan ke login dengan pesan sukses
         return redirect()->route('login')
             ->with('success', 'Akun berhasil dibuat. Silakan login.');
     }
