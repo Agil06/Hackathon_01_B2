@@ -25,7 +25,11 @@ class AdminUserController extends Controller
     }
 
     /**
-     * Menampilkan daftar semua akun pengguna (FR-04).
+     * Menampilkan daftar semua akun pengguna (FR-03, UC-04).
+     * BR-02: Akun memiliki role 'admin' atau 'user'.
+     * BR-11: Akses dibatasi khusus untuk admin terautentikasi; user biasa menerima HTTP 403.
+     * BR-12: Query database menggunakan Eloquent berparameter.
+     * AC-03: Admin dapat melihat seluruh akun pengguna yang terdaftar.
      */
     public function index(): View
     {

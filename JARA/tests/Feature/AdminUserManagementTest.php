@@ -47,7 +47,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-04 & BR-04 & AC-05: Pengguna reguler (non-admin) ditolak dengan HTTP 403.
+     * FR-03 & BR-02 & BR-11 & AC-03: Pengguna reguler (non-admin) ditolak dengan HTTP 403 dari area admin.
      */
     public function test_regular_user_is_forbidden_from_admin_user_management(): void
     {
@@ -76,7 +76,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     /**
-     * FR-04 & AC-05: Admin dapat melihat daftar akun pengguna.
+     * FR-03 & AC-03 & UC-04: Admin dapat melihat daftar seluruh akun pengguna dengan role dan detailnya.
      */
     public function test_admin_can_view_user_list(): void
     {
@@ -85,8 +85,16 @@ class AdminUserManagementTest extends TestCase
         $response->assertOk();
         $response->assertViewIs('admin.users.index');
         $response->assertViewHas('users');
+
+        $users = $response->viewData('users');
+        $this->assertCount(2, $users);
+        $this->assertEquals($this->adminUser->id, $users->first()->id);
+
+        $response->assertSeeText($this->adminUser->name);
         $response->assertSeeText($this->adminUser->email);
+        $response->assertSeeText($this->regularUser->name);
         $response->assertSeeText($this->regularUser->email);
+        $response->assertSeeText('(Anda)');
     }
 
     /**
