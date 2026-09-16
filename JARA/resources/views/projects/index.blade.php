@@ -8,14 +8,18 @@
         <h1 style="font-size: 1.75rem; margin-bottom: 0.25rem;">Projects</h1>
         <p style="color: var(--text-muted); font-size: 13px;">Overview of projects you are participating in.</p>
     </div>
-    <a href="{{ route('projects.create') }}" class="btn btn-primary">+ Create Project</a>
+    @can('create', App\Models\Project::class)
+        <a href="{{ route('projects.create') }}" class="btn btn-primary">+ Create Project</a>
+    @endcan
 </div>
 
 @if($projects->isEmpty())
     <div class="card" style="text-align: center; padding: 4rem 2rem;">
         <h3 style="font-size: 1.125rem; margin-bottom: 0.5rem; color: var(--text-main);">No projects yet</h3>
         <p style="color: var(--text-muted); margin-bottom: 1.5rem;">You are not a member of any projects. Create your first project to get started.</p>
-        <a href="{{ route('projects.create') }}" class="btn btn-primary">Create Your First Project</a>
+        @can('create', App\Models\Project::class)
+            <a href="{{ route('projects.create') }}" class="btn btn-primary">Create Your First Project</a>
+        @endcan
     </div>
 @else
     <div class="card" style="padding: 0; overflow: hidden;">

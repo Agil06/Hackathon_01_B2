@@ -249,7 +249,9 @@
             color: var(--text-main);
         }
 
-        .form-control {
+        .form-control,
+        .form-input,
+        .form-select {
             width: 100%;
             padding: 0.5rem 0.75rem;
             font-size: 14px;
@@ -259,22 +261,97 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
             transition: border-color 150ms ease, box-shadow 150ms ease;
+            box-sizing: border-box;
         }
 
-        .form-control:focus {
+        .form-control:focus,
+        .form-input:focus,
+        .form-select:focus {
             outline: none;
             border-color: var(--interactive);
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+        }
+
+        .form-control.is-invalid,
+        .form-input.is-invalid,
+        .form-select.is-invalid {
+            border-color: var(--error);
         }
 
         .form-error {
             color: var(--error);
             font-size: 12px;
             margin-top: 0.25rem;
+            display: block;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .required {
+            color: var(--error);
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Auth Container & Cards */
+        .auth-container {
+            max-width: 440px;
+            margin: 2rem auto;
+            width: 100%;
+        }
+
+        .auth-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+        }
+
+        .auth-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.375rem;
+        }
+
+        .auth-subtitle {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 1.5rem;
+        }
+
+        .auth-footer {
+            margin-top: 1.5rem;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .auth-link {
+            color: var(--interactive);
+            font-weight: 500;
         }
 
         /* Badges */
-        .badge {
+        .badge,
+        .role-badge {
             display: inline-block;
             padding: 2px 8px;
             font-size: 11px;
@@ -284,68 +361,72 @@
             letter-spacing: 0.02em;
         }
 
-        .badge-progress-not-started {
-            background-color: var(--recessed);
-            color: var(--text-muted);
-            border: 1px solid var(--recessed-dark);
-        }
-
-        .badge-progress-in-progress {
-            background-color: #EEF2FF;
-            color: var(--interactive);
-            border: 1px solid #E0E7FF;
-        }
-
-        .badge-progress-completed {
-            background-color: var(--success-bg);
-            color: var(--success);
-            border: 1px solid var(--success-border);
-        }
-
-        .badge-priority-low {
+        .badge-progress-not-started,
+        .badge-status-not_done,
+        .badge-not_done,
+        .badge-priority-low,
+        .badge-low {
             background-color: #F4F4F5;
             color: #71717A;
             border: 1px solid #E4E4E7;
         }
 
-        .badge-priority-medium {
-            background-color: #FEF3C7;
-            color: #92400E;
-            border: 1px solid #FDE68A;
-        }
-
-        .badge-priority-high {
-            background-color: #FEE2E2;
-            color: #B91C1C;
-            border: 1px solid #FECACA;
-        }
-
-        .badge-status-not_done {
-            background-color: #F4F4F5;
-            color: #71717A;
-            border: 1px solid #E4E4E7;
-        }
-
-        .badge-status-in_progress {
+        .badge-progress-in-progress,
+        .badge-status-in_progress,
+        .badge-in_progress {
             background-color: #EEF2FF;
             color: #4F46E5;
             border: 1px solid #E0E7FF;
         }
 
-        .badge-status-done {
+        .badge-progress-completed,
+        .badge-status-done,
+        .badge-done {
             background-color: #ECFDF5;
             color: #047857;
             border: 1px solid #A7F3D0;
         }
 
+        .badge-priority-medium,
+        .badge-medium {
+            background-color: #FEF3C7;
+            color: #92400E;
+            border: 1px solid #FDE68A;
+        }
+
+        .badge-priority-high,
+        .badge-high {
+            background-color: #FEE2E2;
+            color: #B91C1C;
+            border: 1px solid #FECACA;
+        }
+
+        .role-badge.admin {
+            background-color: var(--primary);
+            color: #ffffff;
+        }
+
+        .role-badge.user {
+            background-color: var(--recessed);
+            color: var(--text-muted);
+            border: 1px solid var(--recessed-dark);
+        }
+
         /* Tables */
-        .data-table {
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .data-table,
+        .table {
             width: 100%;
             border-collapse: collapse;
             text-align: left;
         }
 
-        .data-table th {
+        .data-table th,
+        .table th {
             padding: 0.75rem 1rem;
             font-size: 12px;
             font-weight: 600;
@@ -355,15 +436,26 @@
             letter-spacing: 0.04em;
         }
 
-        .data-table td {
+        .data-table td,
+        .table td {
             padding: 0.875rem 1rem;
             border-bottom: 1px solid var(--border);
             color: var(--text-main);
             vertical-align: middle;
         }
 
-        .data-table tbody tr:hover {
+        .data-table tbody tr:hover,
+        .table tbody tr:hover {
             background-color: #F8FAFC;
+        }
+
+        .task-link {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .task-link:hover {
+            color: var(--interactive);
         }
 
         /* Footer */

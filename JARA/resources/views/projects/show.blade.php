@@ -44,8 +44,8 @@
     <div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <h2 style="font-size: 1.25rem;">Tasks ({{ $project->tasks->count() }})</h2>
-            @if(Route::has('projects.tasks.create'))
-                <a href="{{ route('projects.tasks.create', $project) }}" class="btn btn-primary btn-sm">+ Add Task</a>
+            @if(Route::has('tasks.create'))
+                <a href="{{ route('tasks.create', $project) }}" class="btn btn-primary btn-sm">+ Add Task</a>
             @endif
         </div>
 
@@ -55,8 +55,8 @@
             @if($project->tasks->isEmpty())
                 <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
                     <p style="color: var(--text-muted); margin-bottom: 1rem;">No tasks yet in this project.</p>
-                    @if(Route::has('projects.tasks.create'))
-                        <a href="{{ route('projects.tasks.create', $project) }}" class="btn btn-secondary btn-sm">Add First Task</a>
+                    @if(Route::has('tasks.create'))
+                        <a href="{{ route('tasks.create', $project) }}" class="btn btn-secondary btn-sm">Add First Task</a>
                     @endif
                 </div>
             @else
@@ -68,7 +68,7 @@
                                 <th>Priority</th>
                                 <th>Status</th>
                                 <th>Deadline</th>
-                                @if(Route::has('projects.tasks.show'))
+                                @if(Route::has('tasks.show'))
                                     <th style="text-align: right;">Actions</th>
                                 @endif
                             </tr>
@@ -77,8 +77,8 @@
                             @foreach($project->tasks as $task)
                                 <tr>
                                     <td>
-                                        @if(Route::has('projects.tasks.show'))
-                                            <a href="{{ route('projects.tasks.show', [$project, $task]) }}" style="font-weight: 500; color: var(--text-main);">
+                                        @if(Route::has('tasks.show'))
+                                            <a href="{{ route('tasks.show', [$project, $task]) }}" style="font-weight: 500; color: var(--text-main);">
                                                 {{ $task->title }}
                                             </a>
                                         @else
@@ -100,9 +100,9 @@
                                             {{ $task->deadline ? \Carbon\Carbon::parse($task->deadline)->format('M d, Y') : '—' }}
                                         </span>
                                     </td>
-                                    @if(Route::has('projects.tasks.show'))
+                                    @if(Route::has('tasks.show'))
                                         <td style="text-align: right;">
-                                            <a href="{{ route('projects.tasks.show', [$project, $task]) }}" class="btn btn-secondary btn-sm">View</a>
+                                            <a href="{{ route('tasks.show', [$project, $task]) }}" class="btn btn-secondary btn-sm">View</a>
                                         </td>
                                     @endif
                                 </tr>
